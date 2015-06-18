@@ -1,0 +1,8 @@
+target
+project/project
+project/target
+src/main/scala-2.10
+.classpath
+.project
+.cache
+.settings

@@ -343,11 +343,13 @@ object CodeGen extends SwaggerToTree with StringUtils {
 trait SwaggerToTree {
   self: StringUtils =>
 
-  def doUrl(basePath: String, path: String, parameters: List[Parameter]) =
+  def doUrl(basePath: String, path: String, parameters: List[Parameter]) = {
+    
     cleanUrl(
       cleanDuplicateSlash(
-        basePath + sanitizePath(path) + paramsToURL(parameters))
+        basePath + sanitizePath(path, ':') /*+ paramsToURL(parameters)*/)
     )
+  }
     
   def controllerNameFromFileName(fn: String) =
     capitalize(fn.split(java.io.File.separator).toList.last.replace(".yaml", "").replace(".json", "")) + "Controller"
@@ -376,7 +378,7 @@ trait SwaggerToTree {
     val urlParams =
       params.foldLeft("")((old, np) =>
         np match {
-          case path: PathParameter => old + "/$"+path.getName
+          case path: PathParameter => old// + "/$"+path.getName
           case query: QueryParameter => 
             old +
             (if (old.contains("?")) "&" 
@@ -678,11 +680,11 @@ trait SwaggerToTree {
 
 trait StringUtils {
 
-  def sanitizePath(s: String) =
+  def sanitizePath(s: String, replaceChar: Char) =
     s.toCharArray().foldLeft(("", false))((old, nc) => {
-      if (old._2 && nc != '}') old
+      if (old._2 && nc != '}') (old._1 + nc, old._2)
       else if (old._2 && nc == '}') (old._1, false)
-      else if (!old._2 && nc == '{') (old._1, true)
+      else if (!old._2 && nc == '{') (old._1 + replaceChar, true)
       else (old._1 + nc, false)
     })._1.trim()
 
@@ -703,12 +705,10 @@ trait StringUtils {
   }
     
   def cleanPathParams(s: String) =
-    s.toCharArray().foldLeft(("", false))((old, nc) => {
-      if (nc == ':') (old._1, true)
-      else if (nc == '/') (old._1 + nc, false)
-      else if (old._2) (old._1, true)
-      else (old._1 + nc, false)
-    })._1.trim()
+    s.toCharArray().foldLeft("")((old, nc) => {
+      if (nc == ':') old + '$'
+      else old + nc
+    }).trim()
 
   def capitalize(s: String) = {
     val ca = s.toCharArray()

@@ -15,6 +15,6 @@ scalacOptions ++= Seq("-target:jvm-1.7",
 					  "-language:_")
 
 libraryDependencies ++= Seq(
-	"com.eed3si9n" %% "treehugger" % "0.4.2-SNAPSHOT",
+	"com.eed3si9n" %% "treehugger" % "0.4.1",
 	"io.swagger" % "swagger-parser" % "1.0.8"
 )

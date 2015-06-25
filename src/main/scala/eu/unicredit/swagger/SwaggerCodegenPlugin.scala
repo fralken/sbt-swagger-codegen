@@ -74,7 +74,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
       state
     }
-
+ 
   lazy val swaggerCodeGenCommand =
     Command.command("swaggerCodeGen") { (state: State) =>
       val extracted: Extracted = Project.extract(state)

@@ -428,20 +428,32 @@ trait SwaggerToTree {
           REF("onError") APPLY (LIT(methodName), REF("err")) DOT("map") APPLY(
               LAMBDA(PARAM("errAnsware")) ==> REF("BadRequest") APPLY (REF("errAnsware")))
               
+    val BODY_WITH_EXCEPTION_HANDLE =
+      if (!async)
+        (TRY {
+        BLOCK {
+          (bodyParams.map(_._2): Seq[Tree]) :+
+          ANSWARE
+        }
+        } CATCH (
+          CASE(REF("err") withType (RootClass.newClass("Throwable"))) ==> BLOCK {
+            REF("err") DOT ("printStackTrace")
+            ERROR
+        }) ENDTRY)
+      else
+         BLOCK {
+          (bodyParams.map(_._2): Seq[Tree]) :+
+          ANSWARE 
+         } DOT ("recoverWith") APPLY BLOCK (CASE (REF("err") withType (RootClass.newClass("Throwable"))) ==> BLOCK {
+           REF("err") DOT ("printStackTrace")
+           ERROR
+         })
+              
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.map(_._2)) := BLOCK {
         ACTION APPLY {
           LAMBDA(PARAM("request")) ==>
-            (TRY {
-              BLOCK {
-                (bodyParams.map(_._2): Seq[Tree]) :+
-                  ANSWARE
-              }
-            } CATCH (
-              CASE(REF("err") withType (RootClass.newClass("Throwable"))) ==> BLOCK {
-                REF("err") DOT ("printStackTrace")
-                ERROR
-              }) ENDTRY)
+            BODY_WITH_EXCEPTION_HANDLE
         }
       }
 

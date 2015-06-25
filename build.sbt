@@ -4,7 +4,7 @@ name := """sbt-swagger-codegen"""
 
 organization := "eu.unicredit"
 
-version := "0.0.2-SNAPSHOT"
+version := "0.0.3-SNAPSHOT"
 
 crossScalaVersions := Seq("2.10.4")
 

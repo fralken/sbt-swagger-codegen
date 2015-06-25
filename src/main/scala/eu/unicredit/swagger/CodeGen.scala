@@ -303,7 +303,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
       } inPackage (clientPackageName)
 
     //dirty trick to get the string interpolator working
-    val str = treeToString(tree).replace("(s, ","(s")
+    val str = treeToString(tree).replace("(s(","((s")
 /*    var afterS = false        
     
     implicit val customPrinter: Option[(treehugger.forest.TreePrinter) => PartialFunction[Tree, Unit]] =

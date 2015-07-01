@@ -6,3 +6,4 @@ src/main/scala-2.10
 .project
 .cache
 .settings
+scalastyle-config.xml

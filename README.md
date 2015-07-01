@@ -42,6 +42,10 @@ Tasks are provided in order to be chained with other tasks (ex: ```(compile in C
 - `swaggerCodeProvidedPackage`	-> "eu.unicredit" (where you will provide business logic server method implementation)
 - `swaggerServerAsync`			-> false (if the server business logic will work retrieving Future or actual values)
 
+**Examples**
+
+Check out [sbt-swagger-codegen-examples](https://github.com/unicredit/sbt-swagger-codegen-examples).
+
 **Dependencies**
 
 **Limitations**

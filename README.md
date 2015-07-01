@@ -12,9 +12,34 @@ By default, the plugin will assume you have put your `yaml` Swagger specificatio
 
 If so, you can then just run `swaggerCodeGen` and it'll produce your *model's* as case classes under `src/main/scala/swagger/codegen` and [Play Framework](www.playframework.com) [Formats](https://www.playframework.com/documentation/2.4.x/ScalaJsonCombinators#Format) for them (for json serialization) under `src/main/scala/swagger/codegen/json`.
 
-**Other tasks**
+
+**Commands**
+
+All available commands from the plugin 
+
+- swaggerClean
+- swaggerCodeGen
+- swaggerPlayServerCodeGen
+- swaggerPlayClientCodeGen
+ 
+**Tasks**
+
+Tasks are provided in order to be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerPlayServerCodeGenTask```
+
+- swaggerCleanTask
+- swaggerCodeGenTask
+- swaggerPlayServerCodeGenTask
+- swaggerPlayClientCodeGenTask
+
 
 **Keys (and override)**
+
+- swaggerSourcesDir
+- swaggerCodegenPackage
+- swaggerModelFileSplitting
+- swaggerGeneratePlayJsonRW
+- swaggerCodeProvidedPackage
+- swaggerServerAsync
 
 **Dependencies**
 

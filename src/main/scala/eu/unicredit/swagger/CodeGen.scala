@@ -1,3 +1,17 @@
+/* Copyright 2015 UniCredit S.p.A.
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 package eu.unicredit.swagger
 
 import treehugger.forest._, definitions._, treehuggerDSL._
@@ -34,8 +48,6 @@ object CodeGen extends SwaggerToTree with StringUtils {
       IMPORT("org.joda.time", "DateTime") inPackage (packageName)
 
     treeToString(initTree) + "\n"
-
-    //treeToString(IMPORT("play.api.libs.json","JsValue")) + "\n"
   }
 
   def generateModels(fileName: String): Map[String, String] = {
@@ -60,7 +72,6 @@ object CodeGen extends SwaggerToTree with StringUtils {
   }
 
   def generateJsonInit(packageName: String): String = {
-    //let see what happens...
     val initTree =
       BLOCK {
         Seq(
@@ -68,8 +79,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
           IMPORT(packageName, "_"))
       } inPackage (packageName)
 
-    treeToString(initTree) /*+ "\n" +
-    treeToString(IMPORT(packageName, "_"))*/
+    treeToString(initTree)
   }
 
   def generateJsonImplicits(vds: List[ValDef]): String = {
@@ -97,11 +107,6 @@ object CodeGen extends SwaggerToTree with StringUtils {
         formats
       }).flatten.toMap
 
-    //val tree = 
-    //  BLOCK(fmts)
-    /*OBJECTDEF("Implicits") := BLOCK(fmts)*/
-
-    //treeToString(tree)
     fmts
   }
 
@@ -178,18 +183,11 @@ object CodeGen extends SwaggerToTree with StringUtils {
 
         val resps = op.getResponses
 
-        //val okResp = resps.find(x => x._1 == "200")
-
-        //val respType = okResp.propType(okResp.get._2.getSchema)
-
         val methodName =
           op.getOperationId
 
         val methodCall =
           genControllerMethod(methodName, op.getParameters, async /*, respType*/ )
-
-        //val controllerFullName = 
-        //  controllerPackageName + controllerName
 
         methodCall
       }).toSeq
@@ -304,37 +302,6 @@ object CodeGen extends SwaggerToTree with StringUtils {
 
     //dirty trick to get the string interpolator working
     val str = treeToString(tree).replace("(s(","((s")
-/*    var afterS = false        
-    
-    implicit val customPrinter: Option[(treehugger.forest.TreePrinter) => PartialFunction[Tree, Unit]] =
-      Some(
-        (tp) => {
-          case tree @ Ident(name) if (name.name == "s") =>
-          afterS = true
-          tree match {
-            case BackQuotedIdent(name) =>
-              tp.print("`", tp.symName(tree, name), "`")
-            case _ =>
-              tp.print(tp.symName(tree, name))
-          }
-         case tree @ Apply(fun, vargs) =>
-          if (!isTupleTree(tree)) tp.print(fun)
-          if (vargs.size == 1
-            && vargs.head.symbol == definitions.PartiallyAppliedParam) tp.print(" _")
-          else {
-            if (afterS) {
-              afterS = false
-              tp.printRow(vargs, "", ", ", "")
-            } else {
-              tp.printRow(vargs, "(", ", ", ")")
-            }
-          }
-  
-        }
-      )
-    
-    val str = treeToString(tree)(customPrinter)
-*/      
     clientName -> str
   }
 
@@ -555,16 +522,11 @@ trait SwaggerToTree {
         (p match {
           case pp: PathParameter =>
             PARAM(pp.getName, paramType(pp))
-          //REF(pp.getName) withType(paramType(pp))
           case qp: QueryParameter =>
             if (qp.getDefaultValue == null)
               PARAM(qp.getName, paramType(qp))
-            //REF(qp.getName) withType(paramType(qp))
             else
               PARAM(qp.getName, paramType(qp))
-          //cannot manage properly default params 'till now...
-          //:= LIT(qp.getDefaultValue)
-          //REF(qp.getName) withType(paramType(qp)) := LIT(qp.getDefaultValue)
         }): ValDef)
     }).toMap
   }
@@ -572,41 +534,8 @@ trait SwaggerToTree {
   def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
     val tree: Tree = REF(className) DOT (methodName) APPLY (getMethodParamas(params).map(_._2))
 
-    //Sorry this is a dirty work around
-    /*
-    treeToString(tree).toCharArray().foldLeft("")((old, nc) => {
-      if ((nc == '(' && old.endsWith("(")) ||
-          (nc == ')' && old.endsWith(")"))) old
-      else old + nc
-    })
-    */
-    //please refactor treehugger to get custom pretty printers
-    //original
+    //dirty trick also here...
     treeToString(tree).replace("val ", "")
-    /*
-    implicit val customPrinter: Option[(treehugger.forest.TreePrinter) => PartialFunction[Tree, Unit]] =
-      Some(
-        (tp) => {
-         case tree @ ValDef(mods, lhs, rhs) =>
-          tp.printAnnotations(tree)
-          tp.printModifiers(tree, mods)
-          
-          //in this case I will avoid the print of val
-          //print(if (mods.isMutable) "var " else "val ")
-          
-          // , symName(tree, name)
-          lhs match {
-            case Typed(expr, tpt) => tp.print(expr, ": ", tpt)
-            case _ => tp.print(lhs)
-          }
-          if (!mods.isDeferred && !rhs.isEmpty)
-            tp.print(" = ", rhs)
-
-        }
-      )
-     
-    treeToString(tree)(customPrinter)
-    */
   }
 
   val yodaDateTimeClass = RootClass.newClass("DateTime")

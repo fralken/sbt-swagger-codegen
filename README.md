@@ -19,10 +19,10 @@ If so, you can then just run `swaggerCodeGen` and it'll produce your *model's* a
 
 All available commands from the plugin
 
-- `swaggerClean`
 - `swaggerCodeGen`
-- `swaggerPlayServerCodeGen`
-- `swaggerPlayClientCodeGen`
+- `swaggerClean`  -> cleans up already generated code
+- `swaggerPlayServerCodeGen` (experimental)   -> generates Play Framework code
+- `swaggerPlayClientCodeGen` (experimental)   -> generates client code using `play-ws`
 
 **Tasks**
 

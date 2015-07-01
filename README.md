@@ -14,6 +14,8 @@ If so, you can then just run `swaggerCodeGen` and it'll produce your *model's* a
 
 **Other tasks**
 
+**Keys (and override)**
+
 **Dependencies**
 
 **Limitations**

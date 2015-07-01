@@ -32,14 +32,14 @@ Tasks are provided in order to be chained with other tasks (ex: ```(compile in C
 - swaggerPlayClientCodeGenTask
 
 
-**Keys (and override)**
+**Keys (and defaults)**
 
-- swaggerSourcesDir
-- swaggerCodegenPackage
-- swaggerModelFileSplitting
-- swaggerGeneratePlayJsonRW
-- swaggerCodeProvidedPackage
-- swaggerServerAsync
+- swaggerSourcesDir 			-> "/src/main/swagger" (path where to search for swagger files)
+- swaggerCodegenPackage			-> "swagger.codegen" (package name of the generated sources)
+- swaggerModelFileSplitting		-> "singleFile" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
+- swaggerGeneratePlayJsonRW		-> true (if you want to generate json Format for your model case classes)
+- swaggerCodeProvidedPackage	-> "eu.unicredit" (where you will provide business logic server method implementation)
+- swaggerServerAsync			-> false (if the server business logic will work retrieving Future or actual values)
 
 **Dependencies**
 

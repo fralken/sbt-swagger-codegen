@@ -14,7 +14,6 @@
 */
 package eu.unicredit.swagger
 
-import treehugger.forest._, definitions._, treehuggerDSL._
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
@@ -113,7 +112,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
   def generatePlayServerRoutes(fileName: String, packageName: String): Seq[String] = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val basePath = swagger.getBasePath
+    val basePath = Option(swagger.getBasePath).getOrElse("/")
 
     val completePaths =
       swagger.getPaths.keySet().toSeq
@@ -262,7 +261,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
           retSchema.setRequired(true)
         } catch {
           case ex: NullPointerException =>
-            throw new Exception("Only valid schema are supported in default/200 answare in: "+p)
+            throw new Exception("Only valid schema are supported in default/200 answer in: "+p)
         }
             
         val respType = propType(retSchema)
@@ -379,28 +378,28 @@ trait SwaggerToTree {
       if (!async) REF("Action")
       else REF("Action.async")
       
-    val ANSWARE = 
+    val ANSWER = 
       if (!async)
         (REF("Ok") APPLY (
           REF("Json") DOT ("toJson") APPLY (
             REF(methodName + "Impl") APPLY ((methodParams ++ bodyParams).map(x => REF(x._1))))))
       else
         REF(methodName + "Impl") APPLY ((methodParams ++ bodyParams).map(x => REF(x._1))) DOT("map") APPLY(
-            LAMBDA(PARAM("answare")) ==> REF("Ok") APPLY (REF("Json") DOT ("toJson") APPLY (REF("answare"))))
+            LAMBDA(PARAM("answer")) ==> REF("Ok") APPLY (REF("Json") DOT ("toJson") APPLY (REF("answer"))))
 
     val ERROR = 
         if (!async)
           REF("BadRequest") APPLY (REF("onError") APPLY (LIT(methodName), REF("err")))
         else
           REF("onError") APPLY (LIT(methodName), REF("err")) DOT("map") APPLY(
-              LAMBDA(PARAM("errAnsware")) ==> REF("BadRequest") APPLY (REF("errAnsware")))
+              LAMBDA(PARAM("errAnswer")) ==> REF("BadRequest") APPLY (REF("errAnswer")))
               
     val BODY_WITH_EXCEPTION_HANDLE =
       if (!async)
         (TRY {
         BLOCK {
           (bodyParams.map(_._2): Seq[Tree]) :+
-          ANSWARE
+          ANSWER
         }
         } CATCH (
           CASE(REF("err") withType (RootClass.newClass("Throwable"))) ==> BLOCK {
@@ -410,7 +409,7 @@ trait SwaggerToTree {
       else
          BLOCK {
           (bodyParams.map(_._2): Seq[Tree]) :+
-          ANSWARE 
+          ANSWER 
          } DOT ("recoverWith") APPLY BLOCK (CASE (REF("err") withType (RootClass.newClass("Throwable"))) ==> BLOCK {
            REF("err") DOT ("printStackTrace")
            ERROR

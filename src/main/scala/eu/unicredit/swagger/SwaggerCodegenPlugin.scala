@@ -32,7 +32,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         case "oneFilePerSource" => OneFilePerSource
         case "oneFilePerModel"  => OneFilePerModel
         case any =>
-          throw new Exception(s"Unsupported swaggerModelFileSplitting option $any plese choose one of (singleFile | oneFilePerSource | oneFilePerModel)")
+          throw new Exception(s"Unsupported swaggerModelFileSplitting option $any please choose one of (singleFile | oneFilePerSource | oneFilePerModel)")
       }
   }
 

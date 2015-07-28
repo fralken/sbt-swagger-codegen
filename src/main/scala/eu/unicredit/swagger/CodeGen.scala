@@ -154,7 +154,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
   def generatePlayServerStub(fileName: String, packageName: String, codeProvidedPackage: String, async: Boolean): (String, String) = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val basePath = swagger.getBasePath
+    val basePath = Option(swagger.getBasePath).getOrElse("/")
 
     val controllerPackageName =
       (packageName + ".controller")
@@ -216,7 +216,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
   def generatePlayClientStub(fileName: String, packageName: String): (String, String) = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val basePath = swagger.getBasePath
+    val basePath = Option(swagger.getBasePath).getOrElse("/")
 
     val clientPackageName =
       (packageName + ".client")

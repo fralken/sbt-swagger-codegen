@@ -43,7 +43,11 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       */
     val swaggerSourcesDir = settingKey[String]("swaggerSourcesDir")
 
-    val swaggerClientCodeTargetDir = settingKey[String]("swaggerClientCodeTargetDir")
+    val swaggerModelCodeTargetDir = settingKey[String]("swaggerModelCodeTargetDir")
+
+    val swaggerPlayClientCodeTargetDir = settingKey[String]("swaggerPlayClientCodeTargetDir")
+
+    val swaggerPlayServerRoutesFile = settingKey[String]("swaggerPlayServerRoutesFile")
 
     val swaggerCodegenPackage = settingKey[String]("swaggerCodegenPackage")
 
@@ -70,7 +74,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   final val swaggerCodegenPackageDefault = "swagger.codegen"
   final val swaggerSourcesDirDefault = "/src/main/swagger"
-  final val swaggerClientCodeTargetDirDefault = "/src/main/swagger"
+  final val swaggerModelCodeTargetDirDefault = "/src/main/swagger"
+  final val swaggerPlayClientCodeTargetDirDefault = "src/main/swagger"
+  final val swaggerPlayServerRoutesFileDefault = "/src/main/swagger"
   final val swaggerModelFilesSplittingDefault = "singleFile"
   final val swaggerGeneratePlayJsonRWDefault = true
   final val swaggerCodeProvidedPackageDefault = "eu.unicredit"
@@ -100,7 +106,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
        val base = baseDirectory.value.getAbsolutePath
        val codegenPackage = swaggerCodegenPackage.?.value getOrElse swaggerCodegenPackageDefault
        val sourcesDir = swaggerSourcesDir.?.value getOrElse (base + swaggerSourcesDirDefault)
-       val targetDir = swaggerClientCodeTargetDir.?.value getOrElse (base + swaggerClientCodeTargetDirDefault)
+       val targetDir = swaggerModelCodeTargetDir.?.value getOrElse (base + swaggerModelCodeTargetDirDefault)
        val fileSplittingMode = swaggerModelFilesSplitting.?.value getOrElse swaggerModelFilesSplittingDefault
        val generatePlayJson = swaggerGeneratePlayJsonRW.?.value getOrElse swaggerGeneratePlayJsonRWDefault
 
@@ -110,16 +116,17 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val base = baseDirectory.value.getAbsolutePath
       val codegenPackage = swaggerCodegenPackage.?.value getOrElse swaggerCodegenPackageDefault
       val sourcesDir = swaggerSourcesDir.?.value getOrElse (base + swaggerSourcesDirDefault)
+      val targetRoutesFile = swaggerPlayServerRoutesFile.?.value getOrElse (base + swaggerPlayServerRoutesFileDefault)
       val codeProvidedPackage = swaggerCodeProvidedPackage.?.value getOrElse swaggerCodeProvidedPackageDefault
       val async = swaggerServerAsync.?.value getOrElse swaggerServerAsyncDefault
 
-      swaggerPlayServerCodeGenImpl(base, codegenPackage, sourcesDir, codeProvidedPackage, async)
+      swaggerPlayServerCodeGenImpl(base, codegenPackage, sourcesDir, codeProvidedPackage, async, targetRoutesFile)
     },
     swaggerPlayClientCodeGenTask := {
       val base = baseDirectory.value.getAbsolutePath
       val codegenPackage = swaggerCodegenPackage.?.value getOrElse swaggerCodegenPackageDefault
       val sourcesDir = swaggerSourcesDir.?.value getOrElse (base + swaggerSourcesDirDefault)
-      val targetDir = swaggerClientCodeTargetDir.?.value getOrElse (base + swaggerClientCodeTargetDirDefault)
+      val targetDir = swaggerPlayClientCodeTargetDir.?.value getOrElse (base + swaggerPlayClientCodeTargetDirDefault)
 
       swaggerPlayClientCodeGenImpl(base, codegenPackage, sourcesDir, targetDir)
     }
@@ -167,7 +174,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         swaggerSourcesDir in currentRef get structure.data getOrElse (base + swaggerSourcesDirDefault)
 
       val targetDir: String =
-        swaggerClientCodeTargetDir in currentRef get structure.data getOrElse (base + swaggerClientCodeTargetDirDefault)
+        swaggerModelCodeTargetDir in currentRef get structure.data getOrElse (base + swaggerModelCodeTargetDirDefault)
 
       val fileSplittingMode: String =
         swaggerModelFilesSplitting in currentRef get structure.data getOrElse swaggerModelFilesSplittingDefault
@@ -263,6 +270,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val sourcesDir: String =
         swaggerSourcesDir in currentRef get structure.data getOrElse (base + swaggerSourcesDirDefault)
 
+      val targetRoutesFile: String =
+        swaggerPlayServerRoutesFile in currentRef get structure.data getOrElse (base + swaggerPlayServerRoutesFileDefault)
+
       val codeProvidedPackage: String =
         swaggerCodeProvidedPackage in currentRef get structure.data getOrElse swaggerCodeProvidedPackageDefault
 
@@ -270,12 +280,12 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         swaggerServerAsync in currentRef get structure.data getOrElse swaggerServerAsyncDefault
 
 
-      swaggerPlayServerCodeGenImpl(base, codegenPackage, sourcesDir, codeProvidedPackage, async)
+      swaggerPlayServerCodeGenImpl(base, codegenPackage, sourcesDir, codeProvidedPackage, async, targetRoutesFile)
 
       state
     }
 
-    def swaggerPlayServerCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, codeProvidedPackage: String, async: Boolean) = {
+    def swaggerPlayServerCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, codeProvidedPackage: String, async: Boolean, targetRoutesFile: String) = {
       val sDir = new File(sourcesDir)
 
       val routes: Map[String, Seq[String]] =
@@ -293,8 +303,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val sr =
         routes.values.flatten.toList.distinct.mkString("\n", "\n\n", "\n")
 
-      FileWriter.writeToFile(new File(base + "/src/main/resources/routes"), sr)
-
+      FileWriter.writeToFile(new File(targetRoutesFile), sr)
+/*
       val controllers: Map[String, String] =
         if (sDir.exists() && sDir.isDirectory()) {
           (for {
@@ -311,7 +321,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
       controllers.foreach {
         case (fName, code) => FileWriter.writeToFile(new File(destDir, fName + ".scala"), code)
-      }
+      } */
     }
 
 
@@ -329,7 +339,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         swaggerSourcesDir in currentRef get structure.data getOrElse (base + swaggerSourcesDirDefault)
 
       val targetDir: String =
-        swaggerClientCodeTargetDir in currentRef get structure.data getOrElse (base + swaggerClientCodeTargetDirDefault)
+        swaggerPlayClientCodeTargetDir in currentRef get structure.data getOrElse (base + swaggerPlayClientCodeTargetDirDefault)
 
       swaggerPlayClientCodeGenImpl(base, codegenPackage, sourcesDir, targetDir)
 

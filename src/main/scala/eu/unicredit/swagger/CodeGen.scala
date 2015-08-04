@@ -130,7 +130,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
 
       val controllerName =
         packageName + ".controller" + "." + controllerNameFromFileName(fileName)
-      
+
       (for {
         op <- ops
       } yield {
@@ -241,21 +241,23 @@ object CodeGen extends SwaggerToTree with StringUtils {
       (for {
         op <- ops
       } yield {
-
-        val resps = op._2.getResponses
-        
+        val (httpVerb, swaggerOp) = op
+        val resps = swaggerOp.getResponses
+        if (resps == null || resps.keySet().isEmpty) {
+          throw new RuntimeException(s"""Can not generate Play client code for endpoint '$httpVerb $p' because no responses were provided in the swagger spec. Write at least one response for that path to fix this error. See the swagger spec: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#pathsObject""")
+        }
         val fallbackResp = {
-          val key = resps.keySet().toSeq.min
+          val key = resps.keySet.min
           key -> resps(resps.keySet().toSeq.min)
         }
-        
+
         val okResp =
           resps.find(x => x._1 == "200") getOrElse(
             resps.find(x => x._1 == "default") getOrElse
               fallbackResp)
 
         val retSchema = okResp._2.getSchema
-        
+
         //work only like this at the moment
         try {
           retSchema.setRequired(true)
@@ -263,7 +265,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
           case ex: NullPointerException =>
             throw new Exception("Only valid schema are supported in default/200 answer in: "+p)
         }
-            
+
         val respType = propType(retSchema)
 
         val methodName =
@@ -272,7 +274,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
 
         val opType =
           op._1.toLowerCase()
-          
+
         val url =
           doUrl(basePath, p, op._2.getParameters.toList)
 
@@ -310,13 +312,13 @@ trait SwaggerToTree {
   self: StringUtils =>
 
   def doUrl(basePath: String, path: String, parameters: List[Parameter]) = {
-    
+
     cleanUrl(
       cleanDuplicateSlash(
         basePath + sanitizePath(path, ':') /*+ paramsToURL(parameters)*/)
     )
   }
-    
+
   def controllerNameFromFileName(fn: String) =
     capitalize(fn.split(java.io.File.separator).toList.last.replace(".yaml", "").replace(".json", "")) + "Controller"
 
@@ -335,20 +337,20 @@ trait SwaggerToTree {
 
   def genClientMethod(methodName: String, url: String, opType: String, params: Seq[Parameter], respType: Type): Tree = {
     val bodyParams = getPlainParamsFromBody(params)
-    
+
     val fullBodyParams = getParamsToBody(params)
 
     val methodParams = getMethodParamas(params)
-    
+
     //probably to be fixed with a custom ordering
     val urlParams =
       params.foldLeft("")((old, np) =>
         np match {
           case path: PathParameter => old// + "/$"+path.getName
-          case query: QueryParameter => 
+          case query: QueryParameter =>
             old +
-            (if (old.contains("?")) "&" 
-            else "?") + query.getName + "=$" + query.getName 
+            (if (old.contains("?")) "&"
+            else "?") + query.getName + "=$" + query.getName
           case _ => old
         }
       )
@@ -356,16 +358,16 @@ trait SwaggerToTree {
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.map(_._2) ++ bodyParams.map(_._2)) := BLOCK {
         REF("WS") DOT("url") APPLY(
-            
-          
+
+
           REF("s") APPLY( LIT(cleanDuplicateSlash("$baseUrl/"+cleanPathParams(url)+urlParams)) )
-          
+
         ) DOT(opType) APPLY(fullBodyParams.map(_._2)) DOT("map") APPLY(
-            LAMBDA(PARAM("resp")) ==> 
+            LAMBDA(PARAM("resp")) ==>
               REF("Json") DOT("parse") APPLY(REF("resp") DOT("body")) DOT("as") APPLYTYPE(respType)
         )
       }
-      
+
     tree
   }
 
@@ -373,12 +375,12 @@ trait SwaggerToTree {
     val bodyParams = getParamsFromBody(params)
 
     val methodParams = getMethodParamas(params)
-    
-    val ACTION = 
+
+    val ACTION =
       if (!async) REF("Action")
       else REF("Action.async")
-      
-    val ANSWER = 
+
+    val ANSWER =
       if (!async)
         (REF("Ok") APPLY (
           REF("Json") DOT ("toJson") APPLY (
@@ -387,13 +389,13 @@ trait SwaggerToTree {
         REF(methodName + "Impl") APPLY ((methodParams ++ bodyParams).map(x => REF(x._1))) DOT("map") APPLY(
             LAMBDA(PARAM("answer")) ==> REF("Ok") APPLY (REF("Json") DOT ("toJson") APPLY (REF("answer"))))
 
-    val ERROR = 
+    val ERROR =
         if (!async)
           REF("BadRequest") APPLY (REF("onError") APPLY (LIT(methodName), REF("err")))
         else
           REF("onError") APPLY (LIT(methodName), REF("err")) DOT("map") APPLY(
               LAMBDA(PARAM("errAnswer")) ==> REF("BadRequest") APPLY (REF("errAnswer")))
-              
+
     val BODY_WITH_EXCEPTION_HANDLE =
       if (!async)
         (TRY {
@@ -409,12 +411,12 @@ trait SwaggerToTree {
       else
          BLOCK {
           (bodyParams.map(_._2): Seq[Tree]) :+
-          ANSWER 
+          ANSWER
          } DOT ("recoverWith") APPLY BLOCK (CASE (REF("err") withType (RootClass.newClass("Throwable"))) ==> BLOCK {
            REF("err") DOT ("printStackTrace")
            ERROR
          })
-              
+
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.map(_._2)) := BLOCK {
         ACTION APPLY {
@@ -423,7 +425,7 @@ trait SwaggerToTree {
         }
       }
 
-    //val treeTrait = 
+    //val treeTrait =
     //   PROC(methodName+"Impl") withParams ((methodParams ++ bodyParams).map(_._2))
 
     tree
@@ -451,7 +453,7 @@ trait SwaggerToTree {
           None
       }).flatten.toMap
   }
-  
+
   def getParamsToBody(params: Seq[Parameter]): Map[String, Tree] = {
     params.filter(p =>
       p match {
@@ -472,7 +474,7 @@ trait SwaggerToTree {
           None
       }).flatten.toMap
   }
-  
+
   def getPlainParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] = {
     params.filter(p =>
       p match {
@@ -580,7 +582,7 @@ trait SwaggerToTree {
 
     val prop =
       PropertyBuilder.build(p.getType, p.getFormat, null)
-      
+
     if (p.getRequired) baseType(prop)
     else OptionClass TYPE_OF baseType(prop)
   }
@@ -633,17 +635,17 @@ trait StringUtils {
       if (nc == '/' && old.endsWith("/")) old
       else old + nc
     })
-    
+
   def cleanUrl(s: String) = {
-    val str = 
+    val str =
       s.replace("/?","?")
-      
+
     if (str.endsWith("/"))
       str.substring(0, str.length()-1)
     else
       str
   }
-    
+
   def cleanPathParams(s: String) =
     s.toCharArray().foldLeft("")((old, nc) => {
       if (nc == ':') old + '$'

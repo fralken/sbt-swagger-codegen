@@ -17,6 +17,8 @@ package eu.unicredit.swagger
 import sbt._
 import Keys._
 
+import java.io.File.separator
+
 import scala.collection.JavaConversions._
 
 object SwaggerCodegenPlugin extends AutoPlugin {
@@ -75,10 +77,10 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   }
 
   final val swaggerCodegenPackageDefault = "swagger.codegen"
-  final val swaggerSourcesDirDefault = "/src/main/swagger"
-  final val swaggerModelCodeTargetDirDefault = "/src/main/swagger"
-  final val swaggerPlayClientCodeTargetDirDefault = "src/main/swagger"
-  final val swaggerPlayServerRoutesFileDefault = "/src/main/swagger"
+  final val swaggerSourcesDirDefault = s"${separator}src${separator}main${separator}swagger"
+  final val swaggerModelCodeTargetDirDefault = s"${separator}src${separator}main${separator}swagger"
+  final val swaggerPlayClientCodeTargetDirDefault = s"src${separator}main${separator}swagger"
+  final val swaggerPlayServerRoutesFileDefault = s"${separator}src${separator}main${separator}swagger"
   final val swaggerModelFilesSplittingDefault = "singleFile"
   final val swaggerGeneratePlayJsonRWDefault = true
   final val swaggerGeneratePlayControllersDefault = true
@@ -152,7 +154,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     }
 
   def swaggerCleanImpl(base: String, codegenPackage: String) = {
-    val destDir = FolderCreator.genPackage(base + "/src/main/scala", codegenPackage)
+    val destDir = FolderCreator.genPackage(s"${base}${separator}src${separator}main${separator}scala", codegenPackage)
 
     def rm_r(f: java.io.File): Unit = {
         if (f.isDirectory())
@@ -324,7 +326,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
             }).toMap
           } else Map()
 
-        val destDir = FolderCreator.genPackage(base + "/src/main/scala", codegenPackage + ".controller")
+        val destDir = FolderCreator.genPackage(s"${base}${separator}src${separator}main${separator}scala", codegenPackage + ".controller")
 
         controllers.foreach {
           case (fName, code) => FileWriter.writeToFile(new File(destDir, fName + ".scala"), code)

@@ -24,6 +24,9 @@ import io.swagger.models._
 import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
 
+import java.io.File.separator
+import java.io.File.separatorChar
+
 object CodeGen extends SwaggerToTree with StringUtils {
 
   def generateClass(name: String, props: Map[String, Property], comments: Option[String]): String = {
@@ -319,11 +322,16 @@ trait SwaggerToTree {
     )
   }
 
-  def controllerNameFromFileName(fn: String) =
-    capitalize(fn.split(java.io.File.separator).toList.last.replace(".yaml", "").replace(".json", "")) + "Controller"
+  val sep =
+    if (separatorChar == 92.toChar) "\\"
+    else separator
+  
+  def controllerNameFromFileName(fn: String) = {
+    capitalize(fn.split(sep).toList.last.replace(".yaml", "").replace(".json", "")) + "Controller"
+  }
 
   def clientNameFromFileName(fn: String) =
-    capitalize(fn.split(java.io.File.separator).toList.last.replace(".yaml", "").replace(".json", "")) + "Client"
+    capitalize(fn.split(sep).toList.last.replace(".yaml", "").replace(".json", "")) + "Client"
 
   def paramsToURL(params: Seq[Parameter]): String = {
     params.filter(p =>

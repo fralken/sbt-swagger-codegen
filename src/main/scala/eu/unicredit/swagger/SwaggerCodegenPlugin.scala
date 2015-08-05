@@ -78,9 +78,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   final val swaggerCodegenPackageDefault = "swagger.codegen"
   final val swaggerSourcesDirDefault = s"${separator}src${separator}main${separator}swagger"
-  final val swaggerModelCodeTargetDirDefault = s"${separator}src${separator}main${separator}swagger"
-  final val swaggerPlayClientCodeTargetDirDefault = s"src${separator}main${separator}swagger"
-  final val swaggerPlayServerRoutesFileDefault = s"${separator}src${separator}main${separator}swagger"
+  final val swaggerModelCodeTargetDirDefault = s"${separator}src${separator}main${separator}scala"
+  final val swaggerPlayClientCodeTargetDirDefault = s"${separator}src${separator}main${separator}scala"
+  final val swaggerPlayServerRoutesFileDefault = s"${separator}src${separator}main${separator}resources${separator}routes"
   final val swaggerModelFilesSplittingDefault = "singleFile"
   final val swaggerGeneratePlayJsonRWDefault = true
   final val swaggerGeneratePlayControllersDefault = true
@@ -163,6 +163,11 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         f.delete()
       }
 
+    val routesFile = new java.io.File(s"${base}${swaggerPlayServerRoutesFileDefault}")
+
+    if (routesFile.exists)
+      routesFile.delete
+    
     rm_r(destDir)
   }
 

@@ -323,7 +323,7 @@ trait SwaggerToTree {
   }
 
   val sep =
-    if (separatorChar == 92.toChar) "\\"
+    if (separatorChar == 92.toChar) "\\\\"
     else separator
   
   def controllerNameFromFileName(fn: String) = {

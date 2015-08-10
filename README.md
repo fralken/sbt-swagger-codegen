@@ -55,10 +55,10 @@ Tasks are provided in order to be chained with other tasks (ex: ```(compile in C
 - `swaggerGeneratePlayJsonRW`		-> true (if you want to generate json Format for your model case classes)
 - `swaggerCodeProvidedPackage`	-> "eu.unicredit" (where you will provide business logic server method implementation)
 - `swaggerServerAsync`			-> false (if the server business logic will work retrieving Future or actual values)
--`swaggerModelCodeTargetDir`	-> "/src/main/scala" (path where to put generated model files)
--`swaggerClientCodeTargetDir`	-> "/src/main/scala" (path where to put generated client code files)
--`swaggerPlayServerRoutesFile`	-> "/src/main/resources/routes" (routes file to be generated)
--`swaggerGeneratePlayControllers`	-> true (to be disabled if you want to provide fully costom controllers with all the boilerplate)
+- `swaggerModelCodeTargetDir`	-> "/src/main/scala" (path where to put generated model files)
+- `swaggerClientCodeTargetDir`	-> "/src/main/scala" (path where to put generated client code files)
+- `swaggerPlayServerRoutesFile`	-> "/src/main/resources/routes" (routes file to be generated)
+- `swaggerGeneratePlayControllers`	-> true (to be disabled if you want to provide fully costom controllers with all the boilerplate)
 
 ## Dependencies
 

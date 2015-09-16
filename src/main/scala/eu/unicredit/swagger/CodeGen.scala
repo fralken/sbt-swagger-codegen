@@ -29,15 +29,12 @@ import java.io.File.separatorChar
 
 object CodeGen extends SwaggerToTree with StringUtils {
 
-  def generateClass(name: String, props: Map[String, Property], comments: Option[String]): String = {
+  def generateClass(name: String, props: Iterable[(String, Property)], comments: Option[String]): String = {
     val GenClass = RootClass.newClass(name)
 
-    val params: Iterable[ValDef] =
-      props.map {
-        case (name, prop) => PARAM(name, propType(prop)): ValDef
-      }
+    val params: Iterable[ValDef] = for ((pname, prop) <- props) yield PARAM(pname, propType(prop, true)): ValDef
 
-    val tree: Tree = CLASSDEF(GenClass).withFlags(Flags.CASE).withParams(params)
+    val tree: Tree = CLASSDEF(GenClass) withFlags Flags.CASE withParams params
 
     val resTree =
       comments.map(tree withComment _).getOrElse(tree)
@@ -47,12 +44,12 @@ object CodeGen extends SwaggerToTree with StringUtils {
 
   def generateModelInit(packageName: String): String = {
     val initTree =
-      IMPORT("org.joda.time", "DateTime") inPackage (packageName)
+      IMPORT("org.joda.time", "DateTime") inPackage packageName
 
     treeToString(initTree) + "\n"
   }
 
-  def generateModels(fileName: String): Map[String, String] = {
+  def generateModels(fileName: String): Iterable[(String, String)] = {
     val swagger = new SwaggerParser().read(fileName)
     val models = swagger.getDefinitions
 
@@ -61,16 +58,9 @@ object CodeGen extends SwaggerToTree with StringUtils {
         (name, model) <- models
         description = model.getDescription
         properties = model.getProperties
-      } yield {
+      } yield name -> generateClass(name, properties, Option(description))
 
-        val comments =
-          if (description eq null) None
-          else Some(description)
-
-        name -> generateClass(name, properties.toMap, comments)
-      }
-
-    modelTrees.toMap
+    modelTrees
   }
 
   def generateJsonInit(packageName: String): String = {
@@ -78,8 +68,8 @@ object CodeGen extends SwaggerToTree with StringUtils {
       BLOCK {
         Seq(
           IMPORT("play.api.libs.json", "_"),
-          IMPORT(packageName, "_"))
-      } inPackage (packageName)
+          IMPORT("play.api.libs.functional.syntax", "_"))
+      } inPackage packageName
 
     treeToString(initTree)
   }
@@ -91,7 +81,34 @@ object CodeGen extends SwaggerToTree with StringUtils {
     treeToString(tree)
   }
 
-  def generateJsonRW(fileNames: List[String]): Map[String, ValDef] = {
+  def generateJsonRW(fileNames: List[String]): List[ValDef] = {
+    def moreThan22Params(name: String, model: Model, c: String, m: String): Tree = {
+      def mtd(prop: Property) = if (prop.getRequired) "as" else "asOpt"
+
+      c match {
+        case "Reads" =>
+          NEW(ANONDEF(s"$c[$name]") := BLOCK(
+            DEF(s"${m}s", s"JsResult[$name]") withFlags Flags.OVERRIDE withParams PARAM("json", "JsValue") := REF("JsSuccess") APPLY (REF(name) APPLY (
+              for ((pname, prop) <- model.getProperties) yield PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd(prop) APPLYTYPE propType(prop, false)))))
+        case "Writes" =>
+          NEW(ANONDEF(s"$c[$name]") := BLOCK(
+            DEF(s"${m}s", "JsValue") withFlags Flags.OVERRIDE withParams PARAM("o", name) := REF("JsObject") APPLY (SeqClass APPLY (
+              for ((pname, prop) <- model.getProperties) yield LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))))
+      }
+    }
+
+    def upTo22Params(name: String, model: Model, c: String, m: String): Tree = {
+      def mtd(name: String, prop: Property) = if (prop.getRequired) name else s"${name}Nullable"
+
+      def apl(name: String, c: String) = c match {
+        case "Reads" => REF(name)
+        case "Writes" => REF("unlift") APPLY (REF(name) DOT "unapply")
+      }
+
+      PAREN(INFIX_CHAIN("and", for ((pname, prop) <- model.getProperties)
+        yield PAREN(REF("__") INFIX "\\" APPLY LIT(Symbol(pname))) DOT mtd(m, prop) APPLYTYPE propType(prop, false))) APPLY apl(name, c)
+    }
+
     val fmts =
       (for {
         file <- fileNames
@@ -102,12 +119,15 @@ object CodeGen extends SwaggerToTree with StringUtils {
         val formats =
           for {
             (name, model) <- models
-          } yield {
-            (name, VAL(name + "Fmt").withFlags(Flags.IMPLICIT) := REF("Json") DOT ("format") APPLYTYPE name)
-          }
+            (c, m) <- Seq(("Reads", "read"), ("Writes", "write"))
+          } yield VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := (
+            if (model.getProperties.size > 22)
+              moreThan22Params(name, model, c, m)
+            else
+              upTo22Params(name, model, c, m))
 
         formats
-      }).flatten.toMap
+      }).flatten
 
     fmts
   }
@@ -151,16 +171,14 @@ object CodeGen extends SwaggerToTree with StringUtils {
       }).toSeq
     }
 
-    completePaths.map(composePlayRoutes).flatten
+    completePaths.flatMap(composePlayRoutes)
   }
 
   def generatePlayServerStub(fileName: String, packageName: String, codeProvidedPackage: String, async: Boolean): (String, String) = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val basePath = Option(swagger.getBasePath).getOrElse("/")
-
     val controllerPackageName =
-      (packageName + ".controller")
+      packageName + ".controller"
 
     val controllerName =
       controllerNameFromFileName(fileName)
@@ -179,20 +197,18 @@ object CodeGen extends SwaggerToTree with StringUtils {
           Option(path.getPost),
           Option(path.getPut)).flatten
 
-      (for {
+      for {
         op <- ops
       } yield {
-
-        val resps = op.getResponses
 
         val methodName =
           op.getOperationId
 
         val methodCall =
-          genControllerMethod(methodName, op.getParameters, async /*, respType*/ )
+          genControllerMethod(methodName, op.getParameters, async)
 
         methodCall
-      }).toSeq
+      }
     }
 
     val imports: Seq[Tree] =
@@ -203,15 +219,17 @@ object CodeGen extends SwaggerToTree with StringUtils {
         IMPORT("play.api.mvc", "_"),
         IMPORT("play.api.libs.json", "_"),
         IMPORT(codeProvidedPackage, controllerName + "Impl")) ++
-        {if (!async) Nil
-        else Seq(IMPORT("play.api.libs.concurrent.Execution.Implicits","_"))}
+        {
+          if (!async) Nil
+          else Seq(IMPORT("play.api.libs.concurrent.Execution.Implicits", "_"))
+        }
 
     val tree =
       BLOCK {
         imports :+
           (OBJECTDEF(controllerName) withParents (controllerName + "Impl") := BLOCK(
             completePaths.map(composePlayController).flatten))
-      } inPackage (controllerPackageName)
+      } inPackage controllerPackageName
 
     controllerName -> treeToString(tree)
   }
@@ -222,7 +240,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
     val basePath = Option(swagger.getBasePath).getOrElse("/")
 
     val clientPackageName =
-      (packageName + ".client")
+      packageName + ".client"
 
     val clientName =
       clientNameFromFileName(fileName)
@@ -241,7 +259,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
           Option(path.getPost) map ("POST" -> _),
           Option(path.getPut) map ("PUT" -> _)).flatten
 
-      (for {
+      for {
         op <- ops
       } yield {
         val (httpVerb, swaggerOp) = op
@@ -255,9 +273,9 @@ object CodeGen extends SwaggerToTree with StringUtils {
         }
 
         val okResp =
-          resps.find(x => x._1 == "200") getOrElse(
+          resps.find(x => x._1 == "200") getOrElse (
             resps.find(x => x._1 == "default") getOrElse
-              fallbackResp)
+            fallbackResp)
 
         val retSchema = okResp._2.getSchema
 
@@ -266,17 +284,17 @@ object CodeGen extends SwaggerToTree with StringUtils {
           retSchema.setRequired(true)
         } catch {
           case ex: NullPointerException =>
-            throw new Exception("Only valid schema are supported in default/200 answer in: "+p)
+            throw new Exception("Only valid schema are supported in default/200 answer in: " + p)
         }
 
-        val respType = propType(retSchema)
+        val respType = propType(retSchema, true)
 
         val methodName =
           if (op._2.getOperationId != null) op._2.getOperationId
-          else throw new Exception("Please provide an operationId in: "+p)
+          else throw new Exception("Please provide an operationId in: " + p)
 
         val opType =
-          op._1.toLowerCase()
+          op._1.toLowerCase
 
         val url =
           doUrl(basePath, p, op._2.getParameters.toList)
@@ -285,7 +303,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
           genClientMethod(methodName, url, opType, op._2.getParameters, respType)
 
         methodCall
-      }).toSeq
+      }
     }
 
     val imports: Seq[Tree] =
@@ -295,18 +313,16 @@ object CodeGen extends SwaggerToTree with StringUtils {
         IMPORT("play.api.libs.ws", "_"),
         IMPORT("play.api.libs.json", "_"),
         IMPORT("play.api.Play", "current"),
-        IMPORT("play.api.libs.concurrent.Execution.Implicits","_"))
+        IMPORT("play.api.libs.concurrent.Execution.Implicits", "_"))
 
     val tree =
       BLOCK {
         imports :+
-          (CLASSDEF(clientName) withParams(PARAM("baseUrl", StringClass)) := BLOCK(
+          (CLASSDEF(clientName) withParams PARAM("baseUrl", StringClass) := BLOCK(
             completePaths.map(composePlayClient).flatten))
-      } inPackage (clientPackageName)
+      } inPackage clientPackageName
 
-    //dirty trick to get the string interpolator working
-    val str = treeToString(tree).replace("(s(","((s")
-    clientName -> str
+    clientName -> treeToString(tree)
   }
 
 }
@@ -318,14 +334,13 @@ trait SwaggerToTree {
 
     cleanUrl(
       cleanDuplicateSlash(
-        basePath + sanitizePath(path, ':') /*+ paramsToURL(parameters)*/)
-    )
+        basePath + sanitizePath(path, ':')))
   }
 
   val sep =
     if (separatorChar == 92.toChar) "\\\\"
     else separator
-  
+
   def controllerNameFromFileName(fn: String) = {
     capitalize(fn.split(sep).toList.last.replace(".yaml", "").replace(".json", "")) + "Controller"
   }
@@ -334,13 +349,12 @@ trait SwaggerToTree {
     capitalize(fn.split(sep).toList.last.replace(".yaml", "").replace(".json", "")) + "Client"
 
   def paramsToURL(params: Seq[Parameter]): String = {
-    params.filter(p =>
-      p match {
-        case path: PathParameter   => true
-        case query: QueryParameter => false
-        case body: BodyParameter   => false
-        case _                     => println("unmanaged parameter please contact the developer to implement it XD"); false
-      }).map(":" + _.getName).mkString("/", "/", "")
+    params.filter {
+      case path: PathParameter => true
+      case query: QueryParameter => false
+      case body: BodyParameter => false
+      case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
+    }.map(":" + _.getName).mkString("/", "/", "")
   }
 
   def genClientMethod(methodName: String, url: String, opType: String, params: Seq[Parameter], respType: Type): Tree = {
@@ -354,32 +368,26 @@ trait SwaggerToTree {
     val urlParams =
       params.foldLeft("")((old, np) =>
         np match {
-          case path: PathParameter => old// + "/$"+path.getName
+          case path: PathParameter => old
           case query: QueryParameter =>
             old +
-            (if (old.contains("?")) "&"
-            else "?") + query.getName + "=$" + query.getName
+              (if (old.contains("?")) "&"
+              else "?") + query.getName + "=$" + query.getName
           case _ => old
-        }
-      )
+        })
 
     val tree: Tree =
-      DEFINFER(methodName) withParams (methodParams.map(_._2) ++ bodyParams.map(_._2)) := BLOCK {
-        REF("WS") DOT("url") APPLY(
-
-
-          REF("s") APPLY( LIT(cleanDuplicateSlash("$baseUrl/"+cleanPathParams(url)+urlParams)) )
-
-        ) DOT(opType) APPLY(fullBodyParams.map(_._2)) DOT("map") APPLY(
+      DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK {
+        REF("WS") DOT "url" APPLY
+          INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url) + urlParams))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
             LAMBDA(PARAM("resp")) ==>
-              REF("Json") DOT("parse") APPLY(REF("resp") DOT("body")) DOT("as") APPLYTYPE(respType)
-        )
+            REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT "as" APPLYTYPE respType)
       }
 
     tree
   }
 
-  def genControllerMethod(methodName: String, params: Seq[Parameter], async: Boolean /*, respType: Type*/ ): Tree = {
+  def genControllerMethod(methodName: String, params: Seq[Parameter], async: Boolean): Tree = {
     val bodyParams = getParamsFromBody(params)
 
     val methodParams = getMethodParamas(params)
@@ -390,140 +398,130 @@ trait SwaggerToTree {
 
     val ANSWER =
       if (!async)
-        (REF("Ok") APPLY (
-          REF("Json") DOT ("toJson") APPLY (
-            REF(methodName + "Impl") APPLY ((methodParams ++ bodyParams).map(x => REF(x._1))))))
+        REF("Ok") APPLY (
+          REF("Json") DOT "toJson" APPLY (
+            REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1))))
       else
-        REF(methodName + "Impl") APPLY ((methodParams ++ bodyParams).map(x => REF(x._1))) DOT("map") APPLY(
-            LAMBDA(PARAM("answer")) ==> REF("Ok") APPLY (REF("Json") DOT ("toJson") APPLY (REF("answer"))))
+        REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)) DOT "map" APPLY (
+          LAMBDA(PARAM("answer")) ==> REF("Ok") APPLY (REF("Json") DOT "toJson" APPLY REF("answer")))
 
     val ERROR =
-        if (!async)
-          REF("BadRequest") APPLY (REF("onError") APPLY (LIT(methodName), REF("err")))
-        else
-          REF("onError") APPLY (LIT(methodName), REF("err")) DOT("map") APPLY(
-              LAMBDA(PARAM("errAnswer")) ==> REF("BadRequest") APPLY (REF("errAnswer")))
+      if (!async)
+        REF("BadRequest") APPLY (REF("onError") APPLY (LIT(methodName), REF("err")))
+      else
+        REF("onError") APPLY (LIT(methodName), REF("err")) DOT "map" APPLY (
+          LAMBDA(PARAM("errAnswer")) ==> REF("BadRequest") APPLY REF("errAnswer"))
 
     val BODY_WITH_EXCEPTION_HANDLE =
       if (!async)
-        (TRY {
-        BLOCK {
-          (bodyParams.map(_._2): Seq[Tree]) :+
-          ANSWER
-        }
+        TRY {
+          BLOCK {
+            (bodyParams.values: Seq[Tree]) :+
+              ANSWER
+          }
         } CATCH (
-          CASE(REF("err") withType (RootClass.newClass("Throwable"))) ==> BLOCK {
-            REF("err") DOT ("printStackTrace")
+          CASE(REF("err") withType RootClass.newClass("Throwable")) ==> BLOCK {
+            REF("err") DOT "printStackTrace"
             ERROR
-        }) ENDTRY)
+          }) ENDTRY
       else
-         BLOCK {
-          (bodyParams.map(_._2): Seq[Tree]) :+
-          ANSWER
-         } DOT ("recoverWith") APPLY BLOCK (CASE (REF("err") withType (RootClass.newClass("Throwable"))) ==> BLOCK {
-           REF("err") DOT ("printStackTrace")
-           ERROR
-         })
+        BLOCK {
+          (bodyParams.values: Seq[Tree]) :+
+            ANSWER
+        } DOT "recoverWith" APPLY BLOCK(CASE(REF("err") withType RootClass.newClass("Throwable")) ==> BLOCK {
+          REF("err") DOT "printStackTrace"
+          ERROR
+        })
 
     val tree: Tree =
-      DEFINFER(methodName) withParams (methodParams.map(_._2)) := BLOCK {
+      DEFINFER(methodName) withParams methodParams.values := BLOCK {
         ACTION APPLY {
           LAMBDA(PARAM("request")) ==>
             BODY_WITH_EXCEPTION_HANDLE
         }
       }
 
-    //val treeTrait =
-    //   PROC(methodName+"Impl") withParams ((methodParams ++ bodyParams).map(_._2))
-
     tree
   }
 
   def getParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] = {
-    params.filter(p =>
-      p match {
-        case path: PathParameter   => false
-        case query: QueryParameter => false
-        case body: BodyParameter   => true
-        case _                     => println("unmanaged parameter please contact the developer to implement it XD"); false
-      }).map(p =>
-      p match {
-        case bp: BodyParameter =>
-          //for sure it is not enough ...
-          val paramType = bp.getSchema.getReference
+    params.filter {
+      case path: PathParameter => false
+      case query: QueryParameter => false
+      case body: BodyParameter => true
+      case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
+    }.flatMap {
+      case bp: BodyParameter =>
+        //for sure it is not enough ...
+        val paramType = bp.getSchema.getReference
 
-          val tree: ValDef = VAL(bp.getName) :=
-            REF("Json") DOT ("fromJson") APPLYTYPE (bp.getSchema.getReference) APPLY (
-              REF("getJsonBody") APPLY (REF("request"))) DOT ("get")
+        val tree: ValDef = VAL(bp.getName) :=
+          REF("Json") DOT "fromJson" APPLYTYPE bp.getSchema.getReference APPLY (
+            REF("getJsonBody") APPLY REF("request")) DOT "get"
 
-          Some(bp.getName -> tree)
-        case _ =>
-          None
-      }).flatten.toMap
+        Some(bp.getName -> tree)
+      case _ =>
+        None
+    }.toMap
   }
 
   def getParamsToBody(params: Seq[Parameter]): Map[String, Tree] = {
-    params.filter(p =>
-      p match {
-        case path: PathParameter   => false
-        case query: QueryParameter => false
-        case body: BodyParameter   => true
-        case _                     => println("unmanaged parameter please contact the developer to implement it XD"); false
-      }).map(p =>
-      p match {
-        case bp: BodyParameter =>
-          //for sure it is not enough ...
-          val paramType = bp.getSchema.getReference
+    params.filter {
+      case path: PathParameter => false
+      case query: QueryParameter => false
+      case body: BodyParameter => true
+      case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
+    }.flatMap {
+      case bp: BodyParameter =>
+        //for sure it is not enough ...
+        val paramType = bp.getSchema.getReference
 
-          val tree =  REF("Json") DOT ("toJson") APPLY (REF(bp.getName))
+        val tree = REF("Json") DOT "toJson" APPLY REF(bp.getName)
 
-          Some(bp.getName -> tree)
-        case _ =>
-          None
-      }).flatten.toMap
+        Some(bp.getName -> tree)
+      case _ =>
+        None
+    }.toMap
   }
 
   def getPlainParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] = {
-    params.filter(p =>
-      p match {
-        case path: PathParameter   => false
-        case query: QueryParameter => false
-        case body: BodyParameter   => true
-        case _                     => println("unmanaged parameter please contact the developer to implement it XD"); false
-      }).map(p =>
-      p match {
-        case bp: BodyParameter =>
-          //for sure it is not enough ...
-          val paramType = bp.getSchema.getReference
+    params.filter {
+      case path: PathParameter => false
+      case query: QueryParameter => false
+      case body: BodyParameter => true
+      case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
+    }.flatMap {
+      case bp: BodyParameter =>
+        //for sure it is not enough ...
+        val paramType = bp.getSchema.getReference
 
-          val tree: ValDef = PARAM(bp.getName, RootClass.newClass(paramType))
+        val tree: ValDef = PARAM(bp.getName, RootClass.newClass(paramType))
 
-          Some(bp.getName -> tree)
-        case _ =>
-          None
-      }).flatten.toMap
+        Some(bp.getName -> tree)
+      case _ =>
+        None
+    }.toMap
   }
 
   def getMethodParamas(params: Seq[Parameter]): Map[String, ValDef] = {
-    params.filter(p =>
-      p match {
-        case path: PathParameter   => true
-        case query: QueryParameter => true
-        case body: BodyParameter   => false
-        case _                     => println("unmanaged parameter please contact the developer to implement it XD"); false
-      }).sortWith((p1, p2) => //the order musty be verified...
+    params.filter {
+      case path: PathParameter => true
+      case query: QueryParameter => true
+      case body: BodyParameter => false
+      case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
+    }.sortWith((p1, p2) => //the order musty be verified...
       p1 match {
         case _: PathParameter =>
           p2 match {
-            case _: PathParameter  => true
+            case _: PathParameter => true
             case _: QueryParameter => true
-            case _                 => true
+            case _ => true
           }
         case _: QueryParameter =>
           p2 match {
-            case _: PathParameter  => false
+            case _: PathParameter => false
             case _: QueryParameter => true
-            case _                 => true
+            case _ => true
           }
         case _ => true
       }).map(p => {
@@ -541,10 +539,9 @@ trait SwaggerToTree {
   }
 
   def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
-    val tree: Tree = REF(className) DOT (methodName) APPLY (getMethodParamas(params).map(_._2))
-
-    //dirty trick also here...
-    treeToString(tree).replace("val ", "")
+    val p = getMethodParamas(params).map { case (n, v) => s"$n: ${treeToString(v.tpt)}" }
+    // since it is a route definition, this is not Scala code, so we generate it manually
+    s"$className.$methodName" + p.mkString("(", ", ", ")")
   }
 
   val yodaDateTimeClass = RootClass.newClass("DateTime")
@@ -577,11 +574,11 @@ trait SwaggerToTree {
         any match {
           case ar: AnyRef =>
             if (ar eq null)
-              throw new Exception("Trying to resolve null class " + any + " for property "+any.getName)
+              throw new Exception("Trying to resolve null class " + any + " for property " + any.getName)
             else
               AnyClass
           case a =>
-            throw new Exception("Unmanaged primitive type " + a + " for property "+any.getName)
+            throw new Exception("Unmanaged primitive type " + a + " for property " + any.getName)
         }
     }
 
@@ -595,7 +592,7 @@ trait SwaggerToTree {
     else OptionClass TYPE_OF baseType(prop)
   }
 
-  def propType(p: Property): Type = {
+  def propType(p: Property, optional: Boolean): Type = {
 
     def complexTypes: PartialFunction[Property, Type] = {
       case m: MapProperty =>
@@ -610,19 +607,19 @@ trait SwaggerToTree {
         any match {
           case ar: AnyRef =>
             if (ar eq null)
-              throw new Exception("Trying to resolve null class " + any + " for property "+any.getName)
+              throw new Exception("Trying to resolve null class " + any + " for property " + any.getName)
             else {
               AnyClass
             }
           case a =>
-            throw new Exception("Unmanaged primitive type " + a + " for property "+any.getName)
+            throw new Exception("Unmanaged primitive type " + a + " for property " + any.getName)
         }
     }
 
     def baseType(_p: Property): Type =
       basicTypes.orElse(complexTypes)(_p)
 
-    if (p.getRequired) baseType(p)
+    if (p.getRequired || !optional) baseType(p)
     else OptionClass TYPE_OF baseType(p)
   }
 
@@ -631,7 +628,7 @@ trait SwaggerToTree {
 trait StringUtils {
 
   def sanitizePath(s: String, replaceChar: Char) =
-    s.toCharArray().foldLeft(("", false))((old, nc) => {
+    s.toCharArray.foldLeft(("", false))((old, nc) => {
       if (old._2 && nc != '}') (old._1 + nc, old._2)
       else if (old._2 && nc == '}') (old._1, false)
       else if (!old._2 && nc == '{') (old._1 + replaceChar, true)
@@ -639,29 +636,29 @@ trait StringUtils {
     })._1.trim()
 
   def cleanDuplicateSlash(s: String) =
-    s.toCharArray().foldLeft("")((old, nc) => {
+    s.toCharArray.foldLeft("")((old, nc) => {
       if (nc == '/' && old.endsWith("/")) old
       else old + nc
     })
 
   def cleanUrl(s: String) = {
     val str =
-      s.replace("/?","?")
+      s.replace("/?", "?")
 
     if (str.endsWith("/"))
-      str.substring(0, str.length()-1)
+      str.substring(0, str.length() - 1)
     else
       str
   }
 
   def cleanPathParams(s: String) =
-    s.toCharArray().foldLeft("")((old, nc) => {
+    s.toCharArray.foldLeft("")((old, nc) => {
       if (nc == ':') old + '$'
       else old + nc
     }).trim()
 
   def capitalize(s: String) = {
-    val ca = s.toCharArray()
+    val ca = s.toCharArray
     val first = ca(0).toString.toUpperCase.getBytes()(0).toChar
     val rest = ca.toList.drop(1)
     new String((first +: rest).toArray[Char])
@@ -671,6 +668,6 @@ trait StringUtils {
     new String((for (i <- 1 to n) yield ' ').toArray)
 
   def trimTo(n: Int, s: String): String =
-    new String((empty(n).zipAll(s, ' ', ' ').map(_._2)).toArray)
+    new String(empty(n).zipAll(s, ' ', ' ').map(_._2).toArray)
 
 }

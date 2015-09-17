@@ -337,16 +337,14 @@ trait SwaggerToTree {
         basePath + sanitizePath(path, ':')))
   }
 
-  val sep =
-    if (separatorChar == 92.toChar) "\\\\"
-    else separator
-
-  def controllerNameFromFileName(fn: String) = {
-    capitalize(fn.split(sep).toList.last.replace(".yaml", "").replace(".json", "")) + "Controller"
+  def objectNameFromFileName(fn: String, obj: String) = {
+    val sep = if (separatorChar == 92.toChar) "\\\\" else separator
+    fn.split(sep).toList.last.replace(".yaml", "").replace(".json", "").capitalize + obj
   }
 
-  def clientNameFromFileName(fn: String) =
-    capitalize(fn.split(sep).toList.last.replace(".yaml", "").replace(".json", "")) + "Client"
+  def controllerNameFromFileName(fn: String) = objectNameFromFileName(fn, "Controller")
+
+  def clientNameFromFileName(fn: String) = objectNameFromFileName(fn, "Client")
 
   def paramsToURL(params: Seq[Parameter]): String = {
     params.filter {
@@ -377,12 +375,11 @@ trait SwaggerToTree {
         })
 
     val tree: Tree =
-      DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK {
+      DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK(
         REF("WS") DOT "url" APPLY
           INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url) + urlParams))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
             LAMBDA(PARAM("resp")) ==>
-            REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT "as" APPLYTYPE respType)
-      }
+            REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT "as" APPLYTYPE respType))
 
     tree
   }
@@ -656,13 +653,6 @@ trait StringUtils {
       if (nc == ':') old + '$'
       else old + nc
     }).trim()
-
-  def capitalize(s: String) = {
-    val ca = s.toCharArray
-    val first = ca(0).toString.toUpperCase.getBytes()(0).toChar
-    val rest = ca.toList.drop(1)
-    new String((first +: rest).toArray[Char])
-  }
 
   def empty(n: Int): String =
     new String((for (i <- 1 to n) yield ' ').toArray)

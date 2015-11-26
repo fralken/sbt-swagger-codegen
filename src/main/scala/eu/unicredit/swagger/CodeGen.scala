@@ -29,40 +29,6 @@ import java.io.File.separatorChar
 
 object CodeGen extends SwaggerToTree with StringUtils {
 
-  def generateClass(name: String, props: Iterable[(String, Property)], comments: Option[String]): String = {
-    val GenClass = RootClass.newClass(name)
-
-    val params: Iterable[ValDef] = for ((pname, prop) <- props) yield PARAM(pname, propType(prop, true)): ValDef
-
-    val tree: Tree = CLASSDEF(GenClass) withFlags Flags.CASE withParams params
-
-    val resTree =
-      comments.map(tree withComment _).getOrElse(tree)
-
-    treeToString(resTree)
-  }
-
-  def generateModelInit(packageName: String): String = {
-    val initTree =
-      IMPORT("org.joda.time", "DateTime") inPackage packageName
-
-    treeToString(initTree) + "\n"
-  }
-
-  def generateModels(fileName: String): Iterable[(String, String)] = {
-    val swagger = new SwaggerParser().read(fileName)
-    val models = swagger.getDefinitions
-
-    val modelTrees =
-      for {
-        (name, model) <- models
-        description = model.getDescription
-        properties = model.getProperties
-      } yield name -> generateClass(name, properties, Option(description))
-
-    modelTrees
-  }
-
   def generateJsonInit(packageName: String): String = {
     val initTree =
       BLOCK {

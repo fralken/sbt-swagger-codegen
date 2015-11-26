@@ -214,11 +214,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                          targetDir: String,
                          modelGenerator: ModelGenerator) = {
 
-    modelGenerator.generate()
-
     val sDir = new File(sourcesDir)
 
-    val models: Map[String, Iterable[(String, String)]] =
+    val models: Map[String,Iterable[SyntaxString]] =
       if (sDir.exists() && sDir.isDirectory) {
         (for {
           file <- sDir.listFiles()
@@ -226,7 +224,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           fPath = file.getAbsolutePath
           if fName.endsWith(".json") || fName.endsWith(".yaml")
         } yield {
-          fName -> CodeGen.generateModels(fPath)
+          fName -> modelGenerator.generate(fPath, codegenPackage)
         }).toMap
       } else Map()
 
@@ -252,26 +250,25 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     FileSplittingModes(fileSplittingMode) match {
       case SingleFile =>
         val code =
-          CodeGen.generateModelInit(codegenPackage) +
-            models.values.flatten.map(_._2).toList.distinct.mkString("\n", "\n\n", "\n")
+          models.values.flatten.map(_.pre).toList.distinct.mkString("\n") +
+            models.values.flatten.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n")
 
         FileWriter.writeToFile(new File(destDir, "Model.scala"), code)
       case OneFilePerSource =>
         models.map {
           case (k, m) =>
             k ->
-              (CodeGen.generateModelInit(codegenPackage) +
-                m.map(_._2).toList.distinct.mkString("\n", "\n\n", "\n"))
+              (m.map(_.pre).toList.distinct.mkString("\n") +
+                m.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n"))
         }.foreach {
           case (k, code) =>
             FileWriter.writeToFile(new File(destDir, s"${getFileName(k)}.scala"), code)
         }
       case OneFilePerModel =>
-        models.values.flatten.foreach {
-          case (k, v) =>
+        models.values.flatten.foreach {v =>
             val code =
-              CodeGen.generateModelInit(codegenPackage) + "\n" + v
-            FileWriter.writeToFile(new File(destDir, s"${getFileName(k)}.scala"), code)
+              v.pre + "\n\n" + v.code
+            FileWriter.writeToFile(new File(destDir, s"${getFileName(v.name)}.scala"), code)
         }
     }
 

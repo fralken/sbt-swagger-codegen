@@ -327,7 +327,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
 
 }
 
-trait SwaggerToTree {
+trait SwaggerToTree extends SwaggerConversion {
   self: StringUtils =>
 
   def doUrl(basePath: String, path: String, parameters: List[Parameter]) = {
@@ -542,122 +542,5 @@ trait SwaggerToTree {
   }
 
   val yodaDateTimeClass = RootClass.newClass("DateTime")
-
-  def basicTypes: PartialFunction[Property, Type] = {
-    case s: StringProperty =>
-      StringClass
-    case b: BooleanProperty =>
-      BooleanClass
-    case d: DoubleProperty =>
-      DoubleClass
-    case f: FloatProperty =>
-      FloatClass
-    case i: IntegerProperty =>
-      IntClass
-    case l: LongProperty =>
-      LongClass
-  }
-
-  def paramType(p: AbstractSerializableParameter[_]): Type = {
-
-    def complexTypes: PartialFunction[Property, Type] = {
-      case a: ArrayProperty =>
-        ListClass TYPE_OF baseType(p.getItems)
-      case d: DecimalProperty =>
-        BigDecimalClass
-      case r: RefProperty =>
-        RootClass.newClass(r.getSimpleRef)
-      case any =>
-        any match {
-          case ar: AnyRef =>
-            if (ar eq null)
-              throw new Exception("Trying to resolve null class " + any + " for property " + any.getName)
-            else
-              AnyClass
-          case a =>
-            throw new Exception("Unmanaged primitive type " + a + " for property " + any.getName)
-        }
-    }
-
-    def baseType(_p: Property): Type =
-      basicTypes.orElse(complexTypes)(_p)
-
-    val prop =
-      PropertyBuilder.build(p.getType, p.getFormat, null)
-
-    if (p.getRequired) baseType(prop)
-    else OptionClass TYPE_OF baseType(prop)
-  }
-
-  def propType(p: Property, optional: Boolean): Type = {
-
-    def complexTypes: PartialFunction[Property, Type] = {
-      case m: MapProperty =>
-        RootClass.newClass("Map") TYPE_OF (StringClass, baseType(m.getAdditionalProperties))
-      case a: ArrayProperty =>
-        ListClass TYPE_OF baseType(a.getItems)
-      case d: DecimalProperty =>
-        BigDecimalClass
-      case r: RefProperty =>
-        RootClass.newClass(r.getSimpleRef)
-      case any =>
-        any match {
-          case ar: AnyRef =>
-            if (ar eq null)
-              throw new Exception("Trying to resolve null class " + any + " for property " + any.getName)
-            else {
-              AnyClass
-            }
-          case a =>
-            throw new Exception("Unmanaged primitive type " + a + " for property " + any.getName)
-        }
-    }
-
-    def baseType(_p: Property): Type =
-      basicTypes.orElse(complexTypes)(_p)
-
-    if (p.getRequired || !optional) baseType(p)
-    else OptionClass TYPE_OF baseType(p)
-  }
-
-}
-
-trait StringUtils {
-
-  def sanitizePath(s: String, replaceChar: Char) =
-    s.toCharArray.foldLeft(("", false))((old, nc) => {
-      if (old._2 && nc != '}') (old._1 + nc, old._2)
-      else if (old._2 && nc == '}') (old._1, false)
-      else if (!old._2 && nc == '{') (old._1 + replaceChar, true)
-      else (old._1 + nc, false)
-    })._1.trim()
-
-  def cleanDuplicateSlash(s: String) =
-    s.toCharArray.foldLeft("")((old, nc) => {
-      if (nc == '/' && old.endsWith("/")) old
-      else old + nc
-    })
-
-  def cleanUrl(s: String) = {
-    val str =
-      s.replace("/?", "?")
-
-    if (str.endsWith("/"))
-      str.substring(0, str.length() - 1)
-    else
-      str
-  }
-
-  def cleanPathParams(s: String) =
-    s.toCharArray.foldLeft("")((old, nc) => {
-      if (nc == ':') old + '$'
-      else old + nc
-    }).trim()
-
-  def empty(n: Int): String =
-    new String((for (i <- 1 to n) yield ' ').toArray)
-
-  def trimTo(n: Int, s: String): String =
-    new String(empty(n).zipAll(s, ' ', ' ').map(_._2).toArray)
 
 }

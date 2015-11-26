@@ -19,6 +19,8 @@ import Keys._
 
 import java.io.File.separator
 
+import eu.unicredit.swagger.generators._
+
 object SwaggerCodegenPlugin extends AutoPlugin {
 
   object FileSplittingModes {
@@ -42,6 +44,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       * Settings
       */
     val swaggerSourcesDir = settingKey[String]("swaggerSourcesDir")
+
+    val swaggerModelCodeGenClass = settingKey[ModelGenerator]("swaggerModelCodeGenClass")
 
     val swaggerModelCodeTargetDir = settingKey[String]("swaggerModelCodeTargetDir")
 
@@ -85,6 +89,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   final val swaggerCodeProvidedPackageDefault = "eu.unicredit"
   final val swaggerServerAsyncDefault = false
 
+  final val swaggerModelCodeGenClassDefault = new DefaultModelGenerator()
+
   import autoImport._
   override def trigger = allRequirements
   override lazy val buildSettings = Seq(
@@ -113,7 +119,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val fileSplittingMode = swaggerModelFilesSplitting.?.value getOrElse swaggerModelFilesSplittingDefault
       val generatePlayJson = swaggerGeneratePlayJsonRW.?.value getOrElse swaggerGeneratePlayJsonRWDefault
 
-      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir)
+      val modelGenerator = swaggerModelCodeGenClass.?.value getOrElse swaggerModelCodeGenClassDefault
+
+      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir, modelGenerator)
     },
     swaggerPlayServerCodeGenTask := {
       val base = baseDirectory.value.getAbsolutePath
@@ -190,12 +198,24 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val generatePlayJson: Boolean =
         swaggerGeneratePlayJsonRW in currentRef get structure.data getOrElse swaggerGeneratePlayJsonRWDefault
 
-      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir)
+      val modelGenerator: ModelGenerator =
+        swaggerModelCodeGenClass in currentRef get structure.data getOrElse swaggerModelCodeGenClassDefault
+
+      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir, modelGenerator)
 
       state
     }
 
-  def swaggerCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, fileSplittingMode: String, generatePlayJson: Boolean, targetDir: String) = {
+  def swaggerCodeGenImpl(base: String,
+                         codegenPackage: String,
+                         sourcesDir: String,
+                         fileSplittingMode: String,
+                         generatePlayJson: Boolean,
+                         targetDir: String,
+                         modelGenerator: ModelGenerator) = {
+
+    modelGenerator.generate()
+
     val sDir = new File(sourcesDir)
 
     val models: Map[String, Iterable[(String, String)]] =

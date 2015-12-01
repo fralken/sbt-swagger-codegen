@@ -97,18 +97,6 @@ object CodeGen extends SwaggerToTree with StringUtils {
       }
     }
 
-    def upTo22Params(name: String, model: Model, c: String, m: String): Tree = {
-      def mtd(name: String, prop: Property) = if (prop.getRequired) name else s"${name}Nullable"
-
-      def apl(name: String, c: String) = c match {
-        case "Reads" => REF(name)
-        case "Writes" => REF("unlift") APPLY (REF(name) DOT "unapply")
-      }
-
-      PAREN(INFIX_CHAIN("and", for ((pname, prop) <- model.getProperties)
-        yield PAREN(REF("__") INFIX "\\" APPLY LIT(Symbol(pname))) DOT mtd(m, prop) APPLYTYPE propType(prop, false))) APPLY apl(name, c)
-    }
-
     val fmts =
       (for {
         file <- fileNames
@@ -121,11 +109,8 @@ object CodeGen extends SwaggerToTree with StringUtils {
             (name, model) <- models
             (c, m) <- Seq(("Reads", "read"), ("Writes", "write"))
           } yield VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := (
-            if (model.getProperties.size > 22)
               moreThan22Params(name, model, c, m)
-            else
-              upTo22Params(name, model, c, m))
-
+          )
         formats
       }).flatten
 

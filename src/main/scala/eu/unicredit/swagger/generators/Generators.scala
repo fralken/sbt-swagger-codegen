@@ -4,10 +4,23 @@ import eu.unicredit.swagger.SwaggerConversion
 
 case class SyntaxString(name: String, pre: String, code: String)
 
-trait ModelGenerator {
+trait Generator {
+}
+
+trait ModelGenerator extends Generator {
 
   def generate(fileName: String, destPackage: String): Iterable[SyntaxString]
 
+}
+
+trait JsonGenerator extends Generator {
+
+  def generate(fileName: String, destPackage: String): Iterable[SyntaxString]
+
+}
+
+object DefaultModelGenerator {
+  def dependencies: Seq[sbt.ModuleID] = Seq()
 }
 
 class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
@@ -54,10 +67,22 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
   }
 }
 
-class AlternativeModelGenerator extends ModelGenerator {
+object DefaultJsonGenerator {
+  def dependencies: Seq[sbt.ModuleID] = Seq()
+}
+
+
+class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
+  import treehugger.forest._
+  import definitions._
+  import treehuggerDSL._
+  import io.swagger.parser.SwaggerParser
+  import io.swagger.models.properties._
+  import scala.collection.JavaConversions._
 
   def generate(fileName: String, destPackage: String): Iterable[SyntaxString] = {
-    println("Called ALTERNATIVE model generator genarate method!!!")
-    Seq()
+    throw new Exception("TBD")
   }
 }
+
+

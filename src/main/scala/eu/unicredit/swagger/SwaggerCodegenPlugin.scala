@@ -57,6 +57,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
     val swaggerModelFilesSplitting = settingKey[String]("swaggerModelFileSplitting")
 
+    val swaggerJsonCodeGenClass = settingKey[JsonGenerator]("swaggerJsonCodeGenClass")
+
     val swaggerGeneratePlayJsonRW = settingKey[Boolean]("swaggerGeneratePlayJsonRW")
 
     val swaggerGeneratePlayControllers = settingKey[Boolean]("swaggerGeneratePlayControllers")
@@ -90,6 +92,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   final val swaggerServerAsyncDefault = false
 
   final val swaggerModelCodeGenClassDefault = new DefaultModelGenerator()
+  final val swaggerJsonCodeGenClassDefault = new DefaultJsonGenerator()
 
   import autoImport._
   override def trigger = allRequirements
@@ -100,11 +103,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       swaggerPlayServerCodeGenCommand,
       swaggerPlayClientCodeGenCommand))
 
-  override val projectSettings = Seq(
-    libraryDependencies ++= Seq(
-      "com.typesafe.play" %% "play-json" % "2.4.0", //always imported???
-      "joda-time" % "joda-time" % "2.7",
-      "org.joda" % "joda-convert" % "1.7"),
+  override val projectSettings = {
+    Seq(
     swaggerCleanTask := {
       val base = baseDirectory.value.getAbsolutePath
       val codegenPackage = swaggerCodegenPackage.?.value getOrElse swaggerCodegenPackageDefault
@@ -120,8 +120,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val generatePlayJson = swaggerGeneratePlayJsonRW.?.value getOrElse swaggerGeneratePlayJsonRWDefault
 
       val modelGenerator = swaggerModelCodeGenClass.?.value getOrElse swaggerModelCodeGenClassDefault
+      val jsonGenerator = swaggerJsonCodeGenClass.?.value getOrElse swaggerJsonCodeGenClassDefault
 
-      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir, modelGenerator)
+      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir, modelGenerator, jsonGenerator)
     },
     swaggerPlayServerCodeGenTask := {
       val base = baseDirectory.value.getAbsolutePath
@@ -142,6 +143,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
       swaggerPlayClientCodeGenImpl(base, codegenPackage, sourcesDir, targetDir)
     })
+  }
 
   lazy val swaggerCleanCommand =
     Command.command("swaggerClean") { (state: State) =>
@@ -201,7 +203,10 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val modelGenerator: ModelGenerator =
         swaggerModelCodeGenClass in currentRef get structure.data getOrElse swaggerModelCodeGenClassDefault
 
-      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir, modelGenerator)
+      val jsonGenerator: JsonGenerator =
+        swaggerJsonCodeGenClass in currentRef get structure.data getOrElse swaggerJsonCodeGenClassDefault
+
+      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir, modelGenerator, jsonGenerator)
 
       state
     }
@@ -212,7 +217,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                          fileSplittingMode: String,
                          generatePlayJson: Boolean,
                          targetDir: String,
-                         modelGenerator: ModelGenerator) = {
+                         modelGenerator: ModelGenerator,
+                         jsonGenerator: JsonGenerator) = {
 
     val sDir = new File(sourcesDir)
 
@@ -229,17 +235,16 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       } else Map()
 
     val jsonFormats =
-      CodeGen.generateJsonRW(
-        if (sDir.exists() && sDir.isDirectory) {
-          (for {
-            file <- sDir.listFiles()
-            fName = file.getName
-            fPath = file.getAbsolutePath
-            if fName.endsWith(".json") || fName.endsWith(".yaml")
-          } yield {
-            fPath
-          }).toList
-        } else List())
+      if (sDir.exists() && sDir.isDirectory) {
+        (for {
+          file <- sDir.listFiles()
+          fName = file.getName
+          fPath = file.getAbsolutePath
+          if fName.endsWith(".json") || fName.endsWith(".yaml")
+        } yield {
+          jsonGenerator.generate(fPath, codegenPackage).toList
+        }).toList
+      } else List()
 
     val destDir = FolderCreator.genPackage(targetDir, codegenPackage)
 
@@ -250,7 +255,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     FileSplittingModes(fileSplittingMode) match {
       case SingleFile =>
         val code =
-          models.values.flatten.map(_.pre).toList.distinct.mkString("\n") +
+          models.values.flatten.map(_.pre.split("\n")).flatten.toList.distinct.mkString("\n") +
             models.values.flatten.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n")
 
         FileWriter.writeToFile(new File(destDir, "Model.scala"), code)
@@ -258,7 +263,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         models.map {
           case (k, m) =>
             k ->
-              (m.map(_.pre).toList.distinct.mkString("\n") +
+              (m.map(_.pre.split("\n")).flatten.toList.distinct.mkString("\n") +
                 m.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n"))
         }.foreach {
           case (k, code) =>
@@ -275,8 +280,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     if (generatePlayJson) {
       val jsonDir = FolderCreator.genPackage(destDir.getAbsolutePath, "json")
       val code =
-        CodeGen.generateJsonInit(codegenPackage) + "\n\n" +
-          CodeGen.generateJsonImplicits(jsonFormats)
+        jsonFormats.map(_.map(_.pre.split("\n")).flatten).flatten.toList.distinct.mkString("\n") +
+          jsonFormats.map(_.map(_.pre.split("\n")).flatten).toList.distinct.mkString("\n\n", "\n\n", "\n")
 
       FileWriter.writeToFile(new File(jsonDir, s"package.scala"), code)
     }

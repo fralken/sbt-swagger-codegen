@@ -48,33 +48,6 @@ object CodeGen extends SwaggerToTree with StringUtils {
   }
 
   def generateJsonRW(fileNames: List[String]): List[ValDef] = {
-    def moreThan22Params(name: String, model: Model, c: String, m: String): Tree = {
-      def mtd(prop: Property) = if (prop.getRequired) "as" else "asOpt"
-
-      c match {
-        case "Reads" =>
-          NEW(ANONDEF(s"$c[$name]") := BLOCK(
-            DEF(s"${m}s", s"JsResult[$name]") withFlags Flags.OVERRIDE withParams PARAM("json", "JsValue") := REF("JsSuccess") APPLY (REF(name) APPLY (
-              for ((pname, prop) <- model.getProperties) yield PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd(prop) APPLYTYPE propType(prop, false)))))
-        case "Writes" =>
-          NEW(ANONDEF(s"$c[$name]") := BLOCK(
-            DEF(s"${m}s", "JsValue") withFlags Flags.OVERRIDE withParams PARAM("o", name) := REF("JsObject") APPLY (SeqClass APPLY (
-              for ((pname, prop) <- model.getProperties) yield LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))))
-      }
-    }
-
-    def upTo22Params(name: String, model: Model, c: String, m: String): Tree = {
-      def mtd(name: String, prop: Property) = if (prop.getRequired) name else s"${name}Nullable"
-
-      def apl(name: String, c: String) = c match {
-        case "Reads" => REF(name)
-        case "Writes" => REF("unlift") APPLY (REF(name) DOT "unapply")
-      }
-
-      PAREN(INFIX_CHAIN("and", for ((pname, prop) <- model.getProperties)
-        yield PAREN(REF("__") INFIX "\\" APPLY LIT(Symbol(pname))) DOT mtd(m, prop) APPLYTYPE propType(prop, false))) APPLY apl(name, c)
-    }
-
     val fmts =
       (for {
         file <- fileNames
@@ -86,12 +59,20 @@ object CodeGen extends SwaggerToTree with StringUtils {
           for {
             (name, model) <- models
             (c, m) <- Seq(("Reads", "read"), ("Writes", "write"))
-          } yield VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := (
-            if (model.getProperties.size > 22)
-              moreThan22Params(name, model, c, m)
-            else
-              upTo22Params(name, model, c, m))
+          } yield VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := ({
+            def mtd(prop: Property) = if (prop.getRequired) "as" else "asOpt"
 
+            c match {
+              case "Reads" =>
+                NEW(ANONDEF(s"$c[$name]") := BLOCK(
+                  DEF(s"${m}s", s"JsResult[$name]") withFlags Flags.OVERRIDE withParams PARAM("json", "JsValue") := REF("JsSuccess") APPLY (REF(name) APPLY (
+                    for ((pname, prop) <- model.getProperties) yield PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd(prop) APPLYTYPE propType(prop, false)))))
+              case "Writes" =>
+                NEW(ANONDEF(s"$c[$name]") := BLOCK(
+                  DEF(s"${m}s", "JsValue") withFlags Flags.OVERRIDE withParams PARAM("o", name) := REF("JsObject") APPLY (SeqClass APPLY (
+                    for ((pname, prop) <- model.getProperties) yield LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))))
+            }})
+            
         formats
       }).flatten
 

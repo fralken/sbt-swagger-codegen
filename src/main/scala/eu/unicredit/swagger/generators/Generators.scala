@@ -80,8 +80,66 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
   import io.swagger.models.properties._
   import scala.collection.JavaConversions._
 
+  def generateJsonInit(packageName: String): String = {
+    val initTree =
+      BLOCK {
+        Seq(
+          IMPORT("play.api.libs.json", "_"),
+          IMPORT("play.api.libs.functional.syntax", "_"))
+      } inPackage packageName
+
+    treeToString(initTree)
+  }
+
+  def generateJsonImplicits(vds: List[ValDef]): String = {
+    val tree =
+      PACKAGEOBJECTDEF("json") := BLOCK(vds)
+
+    treeToString(tree)
+  }
+
+  def generateJsonRW(fileName: String): List[(String, ValDef)] = {
+    val swagger = new SwaggerParser().read(fileName)
+    val models = swagger.getDefinitions
+
+    (for {
+      (name, model) <- models
+      (c, m) <- Seq(("Reads", "read"), ("Writes", "write"))
+    } yield {
+
+      val vd =
+        VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := ({
+        def mtd(prop: Property) = if (prop.getRequired) "as" else "asOpt"
+
+        c match {
+          case "Reads" =>
+            NEW(ANONDEF(s"$c[$name]") := BLOCK(
+              DEF(s"${m}s", s"JsResult[$name]") withFlags Flags.OVERRIDE withParams PARAM("json", "JsValue") := REF("JsSuccess") APPLY (REF(name) APPLY (
+                for ((pname, prop) <- model.getProperties) yield PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd(prop) APPLYTYPE propType(prop, false)))))
+          case "Writes" =>
+            NEW(ANONDEF(s"$c[$name]") := BLOCK(
+              DEF(s"${m}s", "JsValue") withFlags Flags.OVERRIDE withParams PARAM("o", name) := REF("JsObject") APPLY (SeqClass APPLY (
+                for ((pname, prop) <- model.getProperties) yield LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))))
+        }})
+
+      (name, vd)
+    }).toList
+  }
+
+  def generateJson(destPackage: String, vds: List[(String, ValDef)]): Iterable[SyntaxString] = {
+    val pre = generateJsonInit(destPackage)
+
+    for ((name, vd) <- vds) yield {
+      val tree =
+        PACKAGEOBJECTDEF("json") := BLOCK(vd)
+
+      val code = treeToString(tree)
+      SyntaxString(name, pre, code)
+    }
+  }
+
   def generate(fileName: String, destPackage: String): Iterable[SyntaxString] = {
-    throw new Exception("TBD")
+    generateJson(destPackage, generateJsonRW(fileName))
   }
 }
 

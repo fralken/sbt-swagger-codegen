@@ -29,56 +29,6 @@ import java.io.File.separatorChar
 
 object CodeGen extends SwaggerToTree with StringUtils {
 
-  def generateJsonInit(packageName: String): String = {
-    val initTree =
-      BLOCK {
-        Seq(
-          IMPORT("play.api.libs.json", "_"),
-          IMPORT("play.api.libs.functional.syntax", "_"))
-      } inPackage packageName
-
-    treeToString(initTree)
-  }
-
-  def generateJsonImplicits(vds: List[ValDef]): String = {
-    val tree =
-      PACKAGEOBJECTDEF("json") := BLOCK(vds)
-
-    treeToString(tree)
-  }
-
-  def generateJsonRW(fileNames: List[String]): List[ValDef] = {
-    val fmts =
-      (for {
-        file <- fileNames
-      } yield {
-        val swagger = new SwaggerParser().read(file)
-        val models = swagger.getDefinitions
-
-        val formats =
-          for {
-            (name, model) <- models
-            (c, m) <- Seq(("Reads", "read"), ("Writes", "write"))
-          } yield VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := ({
-            def mtd(prop: Property) = if (prop.getRequired) "as" else "asOpt"
-
-            c match {
-              case "Reads" =>
-                NEW(ANONDEF(s"$c[$name]") := BLOCK(
-                  DEF(s"${m}s", s"JsResult[$name]") withFlags Flags.OVERRIDE withParams PARAM("json", "JsValue") := REF("JsSuccess") APPLY (REF(name) APPLY (
-                    for ((pname, prop) <- model.getProperties) yield PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd(prop) APPLYTYPE propType(prop, false)))))
-              case "Writes" =>
-                NEW(ANONDEF(s"$c[$name]") := BLOCK(
-                  DEF(s"${m}s", "JsValue") withFlags Flags.OVERRIDE withParams PARAM("o", name) := REF("JsObject") APPLY (SeqClass APPLY (
-                    for ((pname, prop) <- model.getProperties) yield LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))))
-            }})
-            
-        formats
-      }).flatten
-
-    fmts
-  }
-
   def generatePlayServerRoutes(fileName: String, packageName: String): Seq[String] = {
     val swagger = new SwaggerParser().read(fileName)
 

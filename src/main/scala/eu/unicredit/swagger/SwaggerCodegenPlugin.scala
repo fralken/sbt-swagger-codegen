@@ -92,7 +92,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   final val swaggerModelFilesSplittingDefault = "singleFile"
   final val swaggerGenerateJsonRWDefault = true
   final val swaggerGenerateControllersDefault = true
-  final val swaggerCodeProvidedPackageDefault = "eu.unicredit"
+  final val swaggerCodeProvidedPackageDefault = "com.yourcompany"
   final val swaggerServerAsyncDefault = false
 
   final val swaggerModelCodeGenClassDefault = new DefaultModelGenerator()

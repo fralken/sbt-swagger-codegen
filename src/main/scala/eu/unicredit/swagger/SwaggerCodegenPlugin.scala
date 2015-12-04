@@ -231,8 +231,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                          jsonGenerator: JsonGenerator) = {
 
     val sDir = new File(sourcesDir)
+    chekFileExixtence(sDir)
 
-    val models: Map[String,Iterable[SyntaxString]] =
+    val models: Map[String, Iterable[SyntaxString]] =
       if (sDir.exists() && sDir.isDirectory) {
         (for {
           file <- sDir.listFiles()
@@ -244,7 +245,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         }).toMap
       } else Map()
 
-    val jsonFormats =
+    val jsonFormats: List[SyntaxString] =
       if (sDir.exists() && sDir.isDirectory) {
         (for {
           file <- sDir.listFiles()
@@ -253,7 +254,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           if fName.endsWith(".json") || fName.endsWith(".yaml")
         } yield {
           jsonGenerator.generate(fPath, codegenPackage).toList
-        }).toList
+        }).flatten.toList
       } else List()
 
     val destDir = FolderCreator.genPackage(targetDir, codegenPackage)
@@ -290,8 +291,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     if (generateJson) {
       val jsonDir = FolderCreator.genPackage(destDir.getAbsolutePath, "json")
       val code =
-        jsonFormats.map(_.map(_.pre.split("\n")).flatten).flatten.toList.distinct.mkString("\n") +
-          jsonFormats.map(_.map(_.pre.split("\n")).flatten).toList.distinct.mkString("\n\n", "\n\n", "\n")
+        jsonFormats.map(_.pre.split("\n")).flatten.toList.distinct.mkString("\n") +
+          jsonFormats.map(_.code).mkString("\n\n", "\n\n", "\n")
 
       FileWriter.writeToFile(new File(jsonDir, s"package.scala"), code)
     }
@@ -332,6 +333,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   def swaggerServerCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, codeProvidedPackage: String, async: Boolean, targetRoutesFile: String, generateControllers: Boolean, serverGenerator: ServerGenerator) = {
     val sDir = new File(sourcesDir)
+    chekFileExixtence(sDir)
 
     val routes: String =
       if (sDir.exists() && sDir.isDirectory) {
@@ -397,6 +399,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   def swaggerClientCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, targetDir: String, clientGenerator: ClientGenerator) = {
     val sDir = new File(sourcesDir)
+    chekFileExixtence(sDir)
 
     val clients: List[SyntaxString] =
       if (sDir.exists() && sDir.isDirectory) {
@@ -416,5 +419,13 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       case ss => FileWriter.writeToFile(new File(destDir, ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
     }
 
+  }
+
+  def chekFileExixtence(sDir: File) = {
+    if (!sDir.exists() || !sDir.isDirectory)
+      throw new Exception("Provided swagger source dir doesn't exists")
+    else
+      if (sDir.listFiles().filter(x => x.getName.endsWith(".json") || x.getName.endsWith(".yaml")).size < 1)
+        throw new Exception("There are no files in swagger directory")
   }
 }

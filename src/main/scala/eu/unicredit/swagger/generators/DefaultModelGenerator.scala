@@ -60,6 +60,7 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
 
   def generate(fileName: String, destPackage: String): Iterable[SyntaxString] = {
     val swagger = new SwaggerParser().read(fileName)
+
     val models = swagger.getDefinitions
 
     val modelss =

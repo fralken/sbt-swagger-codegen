@@ -140,11 +140,9 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       } inPackage controllerPackageName
 
     val tree =
-      BLOCK {
         (OBJECTDEF(controllerName) withParents (controllerName + "Impl") := BLOCK(
           completePaths.map(composeController).flatten))
-      }
-
+        
     Seq(SyntaxString(controllerName, treeToString(imports), treeToString(tree)))
   }
 

@@ -53,8 +53,9 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
     treeToString(tree)
   }
 
-  def generateJsonRW(fileName: String): List[(String, ValDef)] = {
+  def generateJsonRW(fileName: String): List[ValDef] = {
     val swagger = new SwaggerParser().read(fileName)
+
     val models = swagger.getDefinitions
 
     (for {
@@ -77,20 +78,18 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
                 for ((pname, prop) <- model.getProperties) yield LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))))
         }})
 
-      (name, vd)
+      vd
     }).toList
   }
 
-  def generateJson(destPackage: String, vds: List[(String, ValDef)]): Iterable[SyntaxString] = {
+  def generateJson(destPackage: String, vds: List[ValDef]): Iterable[SyntaxString] = {
     val pre = generateJsonInit(destPackage)
 
-    for ((name, vd) <- vds) yield {
-      val tree =
-        PACKAGEOBJECTDEF("json") := BLOCK(vd)
+    val tree =
+        PACKAGEOBJECTDEF("json") := BLOCK(vds)
 
-      val code = treeToString(tree)
-      SyntaxString(name, pre, code)
-    }
+    val code = treeToString(tree)
+    Seq(SyntaxString("json", pre, code))
   }
 
   def generate(fileName: String, destPackage: String): Iterable[SyntaxString] = {

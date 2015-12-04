@@ -122,10 +122,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       } inPackage clientPackageName
 
     val tree =
-      BLOCK {
         (CLASSDEF(clientName) withParams PARAM("baseUrl", StringClass) := BLOCK(
           completePaths.map(composeClient).flatten))
-      }
 
     Seq(SyntaxString(clientName, treeToString(imports), treeToString(tree)))
   }

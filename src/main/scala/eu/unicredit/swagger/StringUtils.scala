@@ -52,4 +52,10 @@ trait StringUtils {
   def trimTo(n: Int, s: String): String =
     new String(empty(n).zipAll(s, ' ', ' ').map(_._2).toArray)
 
+  def doUrl(basePath: String, path: String) = {
+    cleanUrl(
+      cleanDuplicateSlash(
+        basePath + sanitizePath(path, ':')))
+  }
+
 }

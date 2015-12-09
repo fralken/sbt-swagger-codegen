@@ -7,7 +7,7 @@ Moreover you can do it directly within an Sbt project.
 
 ## Compatibility
 
-This codegenerator is designed specifically for Swagger Spec Version 2.0. Moreover it rely on (Play!Framework)[http://www.playframework.com/] version 2.4 for Json marshalling/unmarshalling, Server and Client side code.
+This codegenerator is designed specifically for Swagger Spec Version 2.0. Moreover it relies on [Play! Framework](http://www.playframework.com/) 2.4 for Json marshalling/unmarshalling, Server and Client side code.
 
 ## Install
 

@@ -19,6 +19,8 @@ import Keys._
 
 import java.io.File.separator
 
+import eu.unicredit.swagger.generators._
+
 object SwaggerCodegenPlugin extends AutoPlugin {
 
   object FileSplittingModes {
@@ -43,19 +45,27 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       */
     val swaggerSourcesDir = settingKey[String]("swaggerSourcesDir")
 
+    val swaggerModelCodeGenClass = settingKey[ModelGenerator]("swaggerModelCodeGenClass")
+
+    val swaggerJsonCodeGenClass = settingKey[JsonGenerator]("swaggerJsonCodeGenClass")
+
+    val swaggerServerCodeGenClass = settingKey[ServerGenerator]("swaggerServerCodeGenClass")
+
+    val swaggerClientCodeGenClass = settingKey[ClientGenerator]("swaggerClientCodeGenClass")
+
     val swaggerModelCodeTargetDir = settingKey[String]("swaggerModelCodeTargetDir")
 
-    val swaggerPlayClientCodeTargetDir = settingKey[String]("swaggerPlayClientCodeTargetDir")
+    val swaggerClientCodeTargetDir = settingKey[String]("swaggerClientCodeTargetDir")
 
-    val swaggerPlayServerRoutesFile = settingKey[String]("swaggerPlayServerRoutesFile")
+    val swaggerServerRoutesFile = settingKey[String]("swaggerServerRoutesFile")
 
     val swaggerCodegenPackage = settingKey[String]("swaggerCodegenPackage")
 
     val swaggerModelFilesSplitting = settingKey[String]("swaggerModelFileSplitting")
 
-    val swaggerGeneratePlayJsonRW = settingKey[Boolean]("swaggerGeneratePlayJsonRW")
+    val swaggerGenerateJsonRW = settingKey[Boolean]("swaggerGenerateJsonRW")
 
-    val swaggerGeneratePlayControllers = settingKey[Boolean]("swaggerGeneratePlayControllers")
+    val swaggerGenerateControllers = settingKey[Boolean]("swaggerGenerateControllers")
 
     val swaggerCodeProvidedPackage = settingKey[String]("swaggerCodeProvidedPackage")
 
@@ -68,22 +78,27 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
     val swaggerCodeGenTask = taskKey[Unit]("Generate swagger models and json converters")
 
-    val swaggerPlayServerCodeGenTask = taskKey[Unit]("Generate swagger Play server routes and controllers boilerplate")
+    val swaggerServerCodeGenTask = taskKey[Unit]("Generate swagger server routes and controllers boilerplate")
 
-    val swaggerPlayClientCodeGenTask = taskKey[Unit]("Generate swagger Play client class with WS calls to specific routes")
+    val swaggerClientCodeGenTask = taskKey[Unit]("Generate swagger client class with WS calls to specific routes")
 
   }
 
   final val swaggerCodegenPackageDefault = "swagger.codegen"
   final val swaggerSourcesDirDefault = s"${separator}src${separator}main${separator}swagger"
   final val swaggerModelCodeTargetDirDefault = s"${separator}src${separator}main${separator}scala"
-  final val swaggerPlayClientCodeTargetDirDefault = s"${separator}src${separator}main${separator}scala"
-  final val swaggerPlayServerRoutesFileDefault = s"${separator}src${separator}main${separator}resources${separator}routes"
+  final val swaggerClientCodeTargetDirDefault = s"${separator}src${separator}main${separator}scala"
+  final val swaggerServerRoutesFileDefault = s"${separator}src${separator}main${separator}resources${separator}routes"
   final val swaggerModelFilesSplittingDefault = "singleFile"
-  final val swaggerGeneratePlayJsonRWDefault = true
-  final val swaggerGeneratePlayControllersDefault = true
-  final val swaggerCodeProvidedPackageDefault = "eu.unicredit"
+  final val swaggerGenerateJsonRWDefault = true
+  final val swaggerGenerateControllersDefault = true
+  final val swaggerCodeProvidedPackageDefault = "com.yourcompany"
   final val swaggerServerAsyncDefault = false
+
+  final val swaggerModelCodeGenClassDefault = new DefaultModelGenerator()
+  final val swaggerJsonCodeGenClassDefault = new DefaultJsonGenerator()
+  final val swaggerServerCodeGenClassDefault = new DefaultServerGenerator()
+  final val swaggerClientCodeGenClassDefault = new DefaultClientGenerator()
 
   import autoImport._
   override def trigger = allRequirements
@@ -91,14 +106,11 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     commands ++= Seq(
       swaggerCleanCommand,
       swaggerCodeGenCommand,
-      swaggerPlayServerCodeGenCommand,
-      swaggerPlayClientCodeGenCommand))
+      swaggerServerCodeGenCommand,
+      swaggerClientCodeGenCommand))
 
-  override val projectSettings = Seq(
-    libraryDependencies ++= Seq(
-      "com.typesafe.play" %% "play-json" % "2.4.0", //always imported???
-      "joda-time" % "joda-time" % "2.7",
-      "org.joda" % "joda-convert" % "1.7"),
+  override val projectSettings = {
+    Seq(
     swaggerCleanTask := {
       val base = baseDirectory.value.getAbsolutePath
       val codegenPackage = swaggerCodegenPackage.?.value getOrElse swaggerCodegenPackageDefault
@@ -111,29 +123,37 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val sourcesDir = swaggerSourcesDir.?.value getOrElse (base + swaggerSourcesDirDefault)
       val targetDir = swaggerModelCodeTargetDir.?.value getOrElse (base + swaggerModelCodeTargetDirDefault)
       val fileSplittingMode = swaggerModelFilesSplitting.?.value getOrElse swaggerModelFilesSplittingDefault
-      val generatePlayJson = swaggerGeneratePlayJsonRW.?.value getOrElse swaggerGeneratePlayJsonRWDefault
+      val generateJson = swaggerGenerateJsonRW.?.value getOrElse swaggerGenerateJsonRWDefault
 
-      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir)
+      val modelGenerator = swaggerModelCodeGenClass.?.value getOrElse swaggerModelCodeGenClassDefault
+      val jsonGenerator = swaggerJsonCodeGenClass.?.value getOrElse swaggerJsonCodeGenClassDefault
+
+      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generateJson, targetDir, modelGenerator, jsonGenerator)
     },
-    swaggerPlayServerCodeGenTask := {
+    swaggerServerCodeGenTask := {
       val base = baseDirectory.value.getAbsolutePath
       val codegenPackage = swaggerCodegenPackage.?.value getOrElse swaggerCodegenPackageDefault
       val sourcesDir = swaggerSourcesDir.?.value getOrElse (base + swaggerSourcesDirDefault)
-      val targetRoutesFile = swaggerPlayServerRoutesFile.?.value getOrElse (base + swaggerPlayServerRoutesFileDefault)
+      val targetRoutesFile = swaggerServerRoutesFile.?.value getOrElse (base + swaggerServerRoutesFileDefault)
       val codeProvidedPackage = swaggerCodeProvidedPackage.?.value getOrElse swaggerCodeProvidedPackageDefault
       val async = swaggerServerAsync.?.value getOrElse swaggerServerAsyncDefault
-      val generateControllers = swaggerGeneratePlayControllers.?.value getOrElse swaggerGeneratePlayControllersDefault
+      val generateControllers = swaggerGenerateControllers.?.value getOrElse swaggerGenerateControllersDefault
 
-      swaggerPlayServerCodeGenImpl(base, codegenPackage, sourcesDir, codeProvidedPackage, async, targetRoutesFile, generateControllers)
+      val serverGenerator = swaggerServerCodeGenClass.?.value getOrElse swaggerServerCodeGenClassDefault
+
+      swaggerServerCodeGenImpl(base, codegenPackage, sourcesDir, codeProvidedPackage, async, targetRoutesFile, generateControllers, serverGenerator)
     },
-    swaggerPlayClientCodeGenTask := {
+    swaggerClientCodeGenTask := {
       val base = baseDirectory.value.getAbsolutePath
       val codegenPackage = swaggerCodegenPackage.?.value getOrElse swaggerCodegenPackageDefault
       val sourcesDir = swaggerSourcesDir.?.value getOrElse (base + swaggerSourcesDirDefault)
-      val targetDir = swaggerPlayClientCodeTargetDir.?.value getOrElse (base + swaggerPlayClientCodeTargetDirDefault)
+      val targetDir = swaggerClientCodeTargetDir.?.value getOrElse (base + swaggerClientCodeTargetDirDefault)
 
-      swaggerPlayClientCodeGenImpl(base, codegenPackage, sourcesDir, targetDir)
+      val clientGenerator = swaggerClientCodeGenClass.?.value getOrElse swaggerClientCodeGenClassDefault
+
+      swaggerClientCodeGenImpl(base, codegenPackage, sourcesDir, targetDir, clientGenerator)
     })
+  }
 
   lazy val swaggerCleanCommand =
     Command.command("swaggerClean") { (state: State) =>
@@ -160,7 +180,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       f.delete()
     }
 
-    val routesFile = new java.io.File(s"$base$swaggerPlayServerRoutesFileDefault")
+    val routesFile = new java.io.File(s"$base$swaggerServerRoutesFileDefault")
 
     if (routesFile.exists)
       routesFile.delete
@@ -187,41 +207,51 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       val fileSplittingMode: String =
         swaggerModelFilesSplitting in currentRef get structure.data getOrElse swaggerModelFilesSplittingDefault
 
-      val generatePlayJson: Boolean =
-        swaggerGeneratePlayJsonRW in currentRef get structure.data getOrElse swaggerGeneratePlayJsonRWDefault
+      val generateJson: Boolean =
+        swaggerGenerateJsonRW in currentRef get structure.data getOrElse swaggerGenerateJsonRWDefault
 
-      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generatePlayJson, targetDir)
+      val modelGenerator: ModelGenerator =
+        swaggerModelCodeGenClass in currentRef get structure.data getOrElse swaggerModelCodeGenClassDefault
+
+      val jsonGenerator: JsonGenerator =
+        swaggerJsonCodeGenClass in currentRef get structure.data getOrElse swaggerJsonCodeGenClassDefault
+
+      swaggerCodeGenImpl(base, codegenPackage, sourcesDir, fileSplittingMode, generateJson, targetDir, modelGenerator, jsonGenerator)
 
       state
     }
 
-  def swaggerCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, fileSplittingMode: String, generatePlayJson: Boolean, targetDir: String) = {
-    val sDir = new File(sourcesDir)
+  def swaggerCodeGenImpl(base: String,
+                         codegenPackage: String,
+                         sourcesDir: String,
+                         fileSplittingMode: String,
+                         generateJson: Boolean,
+                         targetDir: String,
+                         modelGenerator: ModelGenerator,
+                         jsonGenerator: JsonGenerator) = {
 
-    val models: Map[String, Iterable[(String, String)]] =
-      if (sDir.exists() && sDir.isDirectory) {
+    val sDir = new File(sourcesDir)
+    chekFileExixtence(sDir)
+
+    val models: Map[String, Iterable[SyntaxString]] =
         (for {
           file <- sDir.listFiles()
           fName = file.getName
           fPath = file.getAbsolutePath
           if fName.endsWith(".json") || fName.endsWith(".yaml")
         } yield {
-          fName -> CodeGen.generateModels(fPath)
+          fName -> modelGenerator.generate(fPath, codegenPackage)
         }).toMap
-      } else Map()
 
-    val jsonFormats =
-      CodeGen.generateJsonRW(
-        if (sDir.exists() && sDir.isDirectory) {
-          (for {
-            file <- sDir.listFiles()
-            fName = file.getName
-            fPath = file.getAbsolutePath
-            if fName.endsWith(".json") || fName.endsWith(".yaml")
-          } yield {
-            fPath
-          }).toList
-        } else List())
+    val jsonFormats: List[SyntaxString] =
+        (for {
+          file <- sDir.listFiles()
+          fName = file.getName
+          fPath = file.getAbsolutePath
+          if fName.endsWith(".json") || fName.endsWith(".yaml")
+        } yield {
+          jsonGenerator.generate(fPath, codegenPackage).toList
+        }).flatten.toList
 
     val destDir = FolderCreator.genPackage(targetDir, codegenPackage)
 
@@ -232,41 +262,40 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     FileSplittingModes(fileSplittingMode) match {
       case SingleFile =>
         val code =
-          CodeGen.generateModelInit(codegenPackage) +
-            models.values.flatten.map(_._2).toList.distinct.mkString("\n", "\n\n", "\n")
+          models.values.flatten.map(_.pre.split("\n")).flatten.toList.distinct.mkString("\n") +
+            models.values.flatten.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n")
 
         FileWriter.writeToFile(new File(destDir, "Model.scala"), code)
       case OneFilePerSource =>
         models.map {
           case (k, m) =>
             k ->
-              (CodeGen.generateModelInit(codegenPackage) +
-                m.map(_._2).toList.distinct.mkString("\n", "\n\n", "\n"))
+              (m.map(_.pre.split("\n")).flatten.toList.distinct.mkString("\n") +
+                m.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n"))
         }.foreach {
           case (k, code) =>
             FileWriter.writeToFile(new File(destDir, s"${getFileName(k)}.scala"), code)
         }
       case OneFilePerModel =>
-        models.values.flatten.foreach {
-          case (k, v) =>
+        models.values.flatten.foreach {v =>
             val code =
-              CodeGen.generateModelInit(codegenPackage) + "\n" + v
-            FileWriter.writeToFile(new File(destDir, s"${getFileName(k)}.scala"), code)
+              v.pre + "\n\n" + v.code
+            FileWriter.writeToFile(new File(destDir, s"${getFileName(v.name)}.scala"), code)
         }
     }
 
-    if (generatePlayJson) {
+    if (generateJson) {
       val jsonDir = FolderCreator.genPackage(destDir.getAbsolutePath, "json")
       val code =
-        CodeGen.generateJsonInit(codegenPackage) + "\n\n" +
-          CodeGen.generateJsonImplicits(jsonFormats)
+        jsonFormats.map(_.pre.split("\n")).flatten.toList.distinct.mkString("\n") +
+          jsonFormats.map(_.code).mkString("\n\n", "\n\n", "\n")
 
       FileWriter.writeToFile(new File(jsonDir, s"package.scala"), code)
     }
   }
 
-  lazy val swaggerPlayServerCodeGenCommand =
-    Command.command("swaggerPlayServerCodeGen") { (state: State) =>
+  lazy val swaggerServerCodeGenCommand =
+    Command.command("swaggerServerCodeGen") { (state: State) =>
       val extracted: Extracted = Project.extract(state)
       import extracted._
 
@@ -279,7 +308,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         swaggerSourcesDir in currentRef get structure.data getOrElse (base + swaggerSourcesDirDefault)
 
       val targetRoutesFile: String =
-        swaggerPlayServerRoutesFile in currentRef get structure.data getOrElse (base + swaggerPlayServerRoutesFileDefault)
+        swaggerServerRoutesFile in currentRef get structure.data getOrElse (base + swaggerServerRoutesFileDefault)
 
       val codeProvidedPackage: String =
         swaggerCodeProvidedPackage in currentRef get structure.data getOrElse swaggerCodeProvidedPackageDefault
@@ -288,56 +317,56 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         swaggerServerAsync in currentRef get structure.data getOrElse swaggerServerAsyncDefault
 
       val generateControllers =
-        swaggerGeneratePlayControllers in currentRef get structure.data getOrElse swaggerGeneratePlayControllersDefault
+        swaggerGenerateControllers in currentRef get structure.data getOrElse swaggerGenerateControllersDefault
 
-      swaggerPlayServerCodeGenImpl(base, codegenPackage, sourcesDir, codeProvidedPackage, async, targetRoutesFile, generateControllers)
+      val serverGenerator: ServerGenerator =
+        swaggerServerCodeGenClass in currentRef get structure.data getOrElse swaggerServerCodeGenClassDefault
+
+      swaggerServerCodeGenImpl(base, codegenPackage, sourcesDir, codeProvidedPackage, async, targetRoutesFile, generateControllers, serverGenerator)
 
       state
     }
 
-  def swaggerPlayServerCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, codeProvidedPackage: String, async: Boolean, targetRoutesFile: String, generateControllers: Boolean) = {
+  def swaggerServerCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, codeProvidedPackage: String, async: Boolean, targetRoutesFile: String, generateControllers: Boolean, serverGenerator: ServerGenerator) = {
     val sDir = new File(sourcesDir)
+    chekFileExixtence(sDir)
 
-    val routes: Map[String, Seq[String]] =
-      if (sDir.exists() && sDir.isDirectory) {
+    val routes: String =
         (for {
           file <- sDir.listFiles()
           fName = file.getName
           fPath = file.getAbsolutePath
           if fName.endsWith(".json") || fName.endsWith(".yaml")
         } yield {
-          fPath -> CodeGen.generatePlayServerRoutes(fPath, codegenPackage)
-        }).toMap
-      } else Map()
+          serverGenerator.generateRoutes(fPath, codegenPackage)
+        }).flatten.mkString("\n")
 
     val sr =
-      routes.values.flatten.toList.distinct.mkString("\n", "\n\n", "\n")
+      routes.split("\n").toList.distinct.mkString("\n", "\n\n", "\n")
 
     FileWriter.writeToFile(new File(targetRoutesFile), sr)
 
     if (generateControllers) {
-      val controllers: Map[String, String] =
-        if (sDir.exists() && sDir.isDirectory) {
+      val controllers: List[SyntaxString] =
           (for {
             file <- sDir.listFiles()
             fName = file.getName
             fPath = file.getAbsolutePath
             if fName.endsWith(".json") || fName.endsWith(".yaml")
           } yield {
-            CodeGen.generatePlayServerStub(fPath, codegenPackage, codeProvidedPackage, async)
-          }).toMap
-        } else Map()
+            serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
+          }).flatten.toList
 
       val destDir = FolderCreator.genPackage(s"$base${separator}src${separator}main${separator}scala", codegenPackage + ".controller")
 
       controllers.foreach {
-        case (fName, code) => FileWriter.writeToFile(new File(destDir, fName + ".scala"), code)
+        case ss => FileWriter.writeToFile(new File(destDir, ss.name + ".scala"), ss.pre+"\n\n"+ss.code)
       }
     }
   }
 
-  lazy val swaggerPlayClientCodeGenCommand =
-    Command.command("swaggerPlayClientCodeGen") { (state: State) =>
+  lazy val swaggerClientCodeGenCommand =
+    Command.command("swaggerClientCodeGen") { (state: State) =>
       val extracted: Extracted = Project.extract(state)
       import extracted._
 
@@ -350,33 +379,43 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         swaggerSourcesDir in currentRef get structure.data getOrElse (base + swaggerSourcesDirDefault)
 
       val targetDir: String =
-        swaggerPlayClientCodeTargetDir in currentRef get structure.data getOrElse (base + swaggerPlayClientCodeTargetDirDefault)
+        swaggerClientCodeTargetDir in currentRef get structure.data getOrElse (base + swaggerClientCodeTargetDirDefault)
 
-      swaggerPlayClientCodeGenImpl(base, codegenPackage, sourcesDir, targetDir)
+      val clientGenerator: ClientGenerator =
+        swaggerClientCodeGenClass in currentRef get structure.data getOrElse swaggerClientCodeGenClassDefault
+
+      swaggerClientCodeGenImpl(base, codegenPackage, sourcesDir, targetDir, clientGenerator)
 
       state
     }
 
-  def swaggerPlayClientCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, targetDir: String) = {
+  def swaggerClientCodeGenImpl(base: String, codegenPackage: String, sourcesDir: String, targetDir: String, clientGenerator: ClientGenerator) = {
     val sDir = new File(sourcesDir)
+    chekFileExixtence(sDir)
 
-    val clients: Map[String, String] =
-      if (sDir.exists() && sDir.isDirectory) {
+    val clients: List[SyntaxString] =
         (for {
           file <- sDir.listFiles()
           fName = file.getName
           fPath = file.getAbsolutePath
           if fName.endsWith(".json") || fName.endsWith(".yaml")
         } yield {
-          CodeGen.generatePlayClientStub(fPath, codegenPackage)
-        }).toMap
-      } else Map()
+          clientGenerator.generate(fPath, codegenPackage)
+        }).flatten.toList
 
     val destDir = FolderCreator.genPackage(targetDir, codegenPackage + ".client")
 
     clients.foreach {
-      case (fName, code) => FileWriter.writeToFile(new File(destDir, fName + ".scala"), code)
+      case ss => FileWriter.writeToFile(new File(destDir, ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
     }
 
+  }
+
+  def chekFileExixtence(sDir: File) = {
+    if (!sDir.exists() || !sDir.isDirectory)
+      throw new Exception("Provided swagger source dir doesn't exists")
+    else
+      if (sDir.listFiles().filter(x => x.getName.endsWith(".json") || x.getName.endsWith(".yaml")).size < 1)
+        throw new Exception("There are no files in swagger directory")
   }
 }

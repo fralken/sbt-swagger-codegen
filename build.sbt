@@ -1,3 +1,5 @@
+import SonatypeKeys._
+
 sbtPlugin := true
 
 name := """sbt-swagger-codegen"""
@@ -18,3 +20,38 @@ libraryDependencies ++= Seq(
 	"com.eed3si9n" %% "treehugger" % "0.4.1",
 	"io.swagger" % "swagger-parser" % "1.0.8"
 )
+
+sonatypeSettings
+
+publishMavenStyle := true
+
+pomIncludeRepository := { x => false }
+
+credentials += Credentials(Path.userHome / ".ivy2" / "sonatype.credentials")
+
+pomExtra := {
+  <url>https://github.com/unicredit/sbt-swagger-codegen</url>
+  <licenses>
+    <license>
+      <name>Apache 2</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+  <scm>
+    <connection>scm:git:github.com/unicredit/sbt-swagger-codegen</connection>
+    <developerConnection>scm:git:git@github.com:unicredit/sbt-swagger-codegen</developerConnection>
+    <url>github.com/unicredit/sbt-swagger-codegen</url>
+  </scm>
+  <developers>
+    <developer>
+      <id>andreaTP</id>
+      <name>Andrea Peruffo</name>
+      <url>https://github.com/andreaTP/</url>
+    </developer>
+    <developer>
+      <id>fralken</id>
+      <name>Francesco Montecuccoli Degli Erri</name>
+      <url>https://github.com/fralken/</url>
+    </developer>
+  </developers>
+}

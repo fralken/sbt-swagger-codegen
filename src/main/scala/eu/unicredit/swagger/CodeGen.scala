@@ -93,18 +93,6 @@ object CodeGen extends SwaggerToTree with StringUtils {
       }
     }
 
-    def idiomaticCode(name: String, model: Model, c: String, m: String): Tree = {
-      def mtd(name: String, prop: Property) = if (prop.getRequired) name else s"${name}Nullable"
-
-      def apl(name: String, c: String) = c match {
-        case "Reads" => REF(name)
-        case "Writes" => REF("unlift") APPLY (REF(name) DOT "unapply")
-      }
-
-      PAREN(INFIX_CHAIN("and", for ((pname, prop) <- model.getProperties)
-        yield PAREN(REF("__") INFIX "\\" APPLY LIT(Symbol(pname))) DOT mtd(m, prop) APPLYTYPE propType(prop, optional = false))) APPLY apl(name, c)
-    }
-
     val fmts =
       (for {
         file <- fileNames
@@ -116,11 +104,7 @@ object CodeGen extends SwaggerToTree with StringUtils {
           for {
             (name, model) <- models
             (c, m) <- Seq(("Reads", "read"), ("Writes", "write"))
-          } yield VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := (
-            if (model.getProperties.size > 1 && model.getProperties.size <= 22)
-              idiomaticCode(name, model, c, m)
-            else
-              plainCode(name, model, c, m))
+          } yield VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := plainCode(name, model, c, m)
 
         formats
       }).flatten

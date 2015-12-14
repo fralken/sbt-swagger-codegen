@@ -90,7 +90,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
             throw new Exception("Only valid schema are supported in default/200 answer in: " + p)
         }
 
-        val respType = propType(retSchema, true)
+        val respType = propType(retSchema)
 
         val methodName =
           if (op._2.getOperationId != null) op._2.getOperationId
@@ -166,9 +166,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
     }.flatMap {
       case bp: BodyParameter =>
-        //for sure it is not enough ...
-        val paramType = bp.getSchema.getReference
-
+        
         val tree = REF("Json") DOT "toJson" APPLY REF(bp.getName)
 
         Some(bp.getName -> tree)
@@ -185,10 +183,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
     }.flatMap {
       case bp: BodyParameter =>
-        //for sure it is not enough ...
-        val paramType = bp.getSchema.getReference
-
-        val tree: ValDef = PARAM(bp.getName, RootClass.newClass(paramType))
+        val tree: ValDef = PARAM(bp.getName, noOptParamType(bp))
 
         Some(bp.getName -> tree)
       case _ =>

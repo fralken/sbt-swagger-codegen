@@ -64,19 +64,19 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
     } yield {
 
       val vd =
-        VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := ({
-        def mtd(prop: Property) = if (prop.getRequired) "as" else "asOpt"
+        VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := ({    
+      c match {
+        case "Reads" => ANONDEF(s"$c[$name]") := LAMBDA(PARAM("json")) ==> REF("JsSuccess") APPLY (REF(name) APPLY (
+          for ((pname, prop) <- model.getProperties) yield {
+            val mtd = if (!prop.getRequired) "asOpt" else "as"
 
-        c match {
-          case "Reads" =>
-            NEW(ANONDEF(s"$c[$name]") := BLOCK(
-              DEF(s"${m}s", s"JsResult[$name]") withFlags Flags.OVERRIDE withParams PARAM("json", "JsValue") := REF("JsSuccess") APPLY (REF(name) APPLY (
-                for ((pname, prop) <- model.getProperties) yield PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd(prop) APPLYTYPE propType(prop, false)))))
-          case "Writes" =>
-            NEW(ANONDEF(s"$c[$name]") := BLOCK(
-              DEF(s"${m}s", "JsValue") withFlags Flags.OVERRIDE withParams PARAM("o", name) := REF("JsObject") APPLY (SeqClass APPLY (
-                for ((pname, prop) <- model.getProperties) yield LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))))
-        }})
+            PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd APPLYTYPE noOptPropType(prop)
+          }
+          ))
+        case "Writes" => ANONDEF(s"$c[$name]") := LAMBDA(PARAM("o")) ==> REF("JsObject") APPLY (SeqClass APPLY (
+          for ((pname, prop) <- model.getProperties) yield 
+            LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))
+      }})
 
       vd
     }).toList

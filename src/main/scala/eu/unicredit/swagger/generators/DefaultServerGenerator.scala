@@ -193,11 +193,9 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
     }.flatMap {
       case bp: BodyParameter =>
-        //for sure it is not enough ...
-        val paramType = bp.getSchema.getReference
 
         val tree: ValDef = VAL(bp.getName) :=
-          REF("Json") DOT "fromJson" APPLYTYPE bp.getSchema.getReference APPLY (
+          REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp) APPLY (
             REF("getJsonBody") APPLY REF("request")) DOT "get"
 
         Some(bp.getName -> tree)

@@ -48,7 +48,7 @@ trait SharedServerClientCode extends StringUtils with SwaggerConversion {
       case query: QueryParameter => true
       case body: BodyParameter => false
       case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
-    }.sortWith((p1, p2) => //the order musty be verified...
+    }.sortWith((p1, p2) => //the order must be verified...
       p1 match {
         case _: PathParameter =>
           p2 match {

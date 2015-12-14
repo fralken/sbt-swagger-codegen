@@ -234,7 +234,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     chekFileExixtence(sDir)
 
     val models: Map[String, Iterable[SyntaxString]] =
-      if (sDir.exists() && sDir.isDirectory) {
         (for {
           file <- sDir.listFiles()
           fName = file.getName
@@ -243,10 +242,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         } yield {
           fName -> modelGenerator.generate(fPath, codegenPackage)
         }).toMap
-      } else Map()
 
     val jsonFormats: List[SyntaxString] =
-      if (sDir.exists() && sDir.isDirectory) {
         (for {
           file <- sDir.listFiles()
           fName = file.getName
@@ -255,7 +252,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         } yield {
           jsonGenerator.generate(fPath, codegenPackage).toList
         }).flatten.toList
-      } else List()
 
     val destDir = FolderCreator.genPackage(targetDir, codegenPackage)
 
@@ -336,7 +332,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     chekFileExixtence(sDir)
 
     val routes: String =
-      if (sDir.exists() && sDir.isDirectory) {
         (for {
           file <- sDir.listFiles()
           fName = file.getName
@@ -345,7 +340,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         } yield {
           serverGenerator.generateRoutes(fPath, codegenPackage)
         }).flatten.mkString("\n")
-      } else ""
 
     val sr =
       routes.split("\n").toList.distinct.mkString("\n", "\n\n", "\n")
@@ -354,7 +348,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
     if (generateControllers) {
       val controllers: List[SyntaxString] =
-        if (sDir.exists() && sDir.isDirectory) {
           (for {
             file <- sDir.listFiles()
             fName = file.getName
@@ -363,7 +356,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           } yield {
             serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
           }).flatten.toList
-        } else List()
 
       val destDir = FolderCreator.genPackage(s"$base${separator}src${separator}main${separator}scala", codegenPackage + ".controller")
 
@@ -402,7 +394,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     chekFileExixtence(sDir)
 
     val clients: List[SyntaxString] =
-      if (sDir.exists() && sDir.isDirectory) {
         (for {
           file <- sDir.listFiles()
           fName = file.getName
@@ -411,7 +402,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         } yield {
           clientGenerator.generate(fPath, codegenPackage)
         }).flatten.toList
-      } else List()
 
     val destDir = FolderCreator.genPackage(targetDir, codegenPackage + ".client")
 

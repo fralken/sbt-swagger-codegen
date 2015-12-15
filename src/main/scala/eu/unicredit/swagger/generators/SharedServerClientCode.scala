@@ -77,4 +77,17 @@ trait SharedServerClientCode extends StringUtils with SwaggerConversion {
     }).toMap
   }
 
+  def respType[T](f: String => T): Seq[(String, T)] =
+    Seq(
+      "Ok" -> f("200"),
+      "Created" -> f("201"),
+      "Accepted" -> f("202"),
+      "NonAuthoritativeInformation" -> f("203"),
+      "NoContent" -> f("204"),
+      "ResetContent" -> f("205"),
+      "PartialContent" -> f("206"),
+      "MultiStatus" -> f("207"),
+      "Ok" -> f("default")
+    )
+
 }

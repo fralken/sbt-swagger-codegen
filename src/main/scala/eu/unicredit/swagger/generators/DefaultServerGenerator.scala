@@ -127,8 +127,17 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         val methodName =
           op.getOperationId
 
+        val okRespType =
+          respType(op.getResponses.get).
+          filter(x => (x._2 ne null)).
+            headOption.map(x => x._1 ->
+              Option(x._2.getSchema).map(y => noOptPropType(y)))
+
+        if (okRespType.isEmpty)
+          throw new Exception("cannot determine Ok result type for $methodName")
+
         val methodCall =
-          genControllerMethod(methodName, op.getParameters)
+          genControllerMethod(methodName, op.getParameters, okRespType.get)
 
         methodCall
       }
@@ -146,7 +155,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     Seq(SyntaxString(controllerName, treeToString(imports), treeToString(tree)))
   }
 
-  def genControllerMethod(methodName: String, params: Seq[Parameter]): Tree = {
+  def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
     val methodParams = getMethodParamas(params)
@@ -155,9 +164,14 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       REF("Action")
 
     val ANSWER =
-        REF("Ok") APPLY (
-          REF("Json") DOT "toJson" APPLY (
-            REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1))))
+        resType._2.map{ typ =>
+          REF(resType._1) APPLY (
+            REF("Json") DOT "toJson" APPLYTYPE typ APPLY (
+              REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)))
+          )
+        }.getOrElse(
+          REF(resType._1)
+        )
 
     val ERROR =
         REF("BadRequest") APPLY (REF("onError") APPLY (LIT(methodName), REF("err")))
@@ -211,7 +225,7 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
     super.generateImports(packageName, codeProvidedPackage, controllerName) :+ 
       IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
 
-  override def genControllerMethod(methodName: String, params: Seq[Parameter]): Tree = {
+  override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
     val methodParams = getMethodParamas(params)
@@ -221,7 +235,13 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
 
     val ANSWER =
         REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)) DOT "map" APPLY (
-          LAMBDA(PARAM("answer")) ==> REF("Ok") APPLY (REF("Json") DOT "toJson" APPLY REF("answer")))
+          LAMBDA(PARAM("answer")) ==> resType._2.map{ typ =>
+            REF(resType._1) APPLY (
+              REF("Json") DOT "toJson" APPLYTYPE typ APPLY REF("answer")
+            )}.getOrElse(
+              REF(resType._1)
+            )
+        )
 
     val ERROR =
         REF("onError") APPLY (LIT(methodName), REF("err")) DOT "map" APPLY (

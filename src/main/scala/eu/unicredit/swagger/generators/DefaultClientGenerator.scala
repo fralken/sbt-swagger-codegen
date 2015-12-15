@@ -66,31 +66,15 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         op <- ops
       } yield {
         val (httpVerb, swaggerOp) = op
-        val resps = swaggerOp.getResponses
-        if (resps == null || resps.keySet().isEmpty) {
-          throw new RuntimeException(s"""Can not generate Play client code for endpoint '$httpVerb $p' because no responses were provided in the swagger spec. Write at least one response for that path to fix this error. See the swagger spec: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#pathsObject""")
-        }
-        val fallbackResp = {
-          val key = resps.keySet.min
-          key -> resps(resps.keySet().toSeq.min)
-        }
 
-        val okResp =
-          resps.find(x => x._1 == "200") getOrElse (
-            resps.find(x => x._1 == "default") getOrElse
-            fallbackResp)
+        val okRespType =
+          respType(swaggerOp.getResponses.get).
+          filter(x => (x._2 ne null)).
+            headOption.map(x => x._1 ->
+              Option(x._2.getSchema).map(y => noOptPropType(y)))
 
-        val retSchema = okResp._2.getSchema
-
-        //work only like this at the moment
-        try {
-          retSchema.setRequired(true)
-        } catch {
-          case ex: NullPointerException =>
-            throw new Exception("Only valid schema are supported in default/200 answer in: " + p)
-        }
-
-        val respType = propType(retSchema)
+        if (okRespType.isEmpty)
+          throw new Exception("cannot determine Ok result type for $methodName")
 
         val methodName =
           if (op._2.getOperationId != null) op._2.getOperationId
@@ -103,7 +87,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           doUrl(basePath, p)
 
         val methodCall =
-          genClientMethod(methodName, url, opType, op._2.getParameters, respType)
+          genClientMethod(methodName, url, opType, op._2.getParameters, okRespType.get)
 
         methodCall
       }
@@ -128,7 +112,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     Seq(SyntaxString(clientName, treeToString(imports), treeToString(tree)))
   }
 
-  def genClientMethod(methodName: String, url: String, opType: String, params: Seq[Parameter], respType: Type): Tree = {
+  def genClientMethod(methodName: String, url: String, opType: String, params: Seq[Parameter], respType: (String, Option[Type])): Tree = {
     val bodyParams = getPlainParamsFromBody(params)
 
     val fullBodyParams = getParamsToBody(params)
@@ -152,7 +136,11 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         REF("WS") DOT "url" APPLY
           INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url) + urlParams))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
             LAMBDA(PARAM("resp")) ==>
-            REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT "as" APPLYTYPE respType))
+            respType._2.map{ typ => {
+              REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT 
+                "as" APPLYTYPE typ
+            }}.getOrElse(BLOCK())
+          ))
 
     tree
   }

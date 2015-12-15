@@ -124,6 +124,16 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         op <- ops
       } yield {
 
+        try
+        if (!op.
+            getProduces.
+            filterNot(_ == "application/json").
+            isEmpty)
+          println("WARNING - only 'application/json' is supported")
+        catch {
+          case _ : Throwable =>
+        }
+        
         val methodName =
           op.getOperationId
 

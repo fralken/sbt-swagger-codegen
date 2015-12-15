@@ -133,7 +133,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         catch {
           case _ : Throwable =>
         }
-        
+
         val methodName =
           op.getOperationId
 
@@ -211,10 +211,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
   def getParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] = {
     params.filter {
-      case path: PathParameter => false
-      case query: QueryParameter => false
       case body: BodyParameter => true
-      case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
+      case _ => false
     }.flatMap {
       case bp: BodyParameter =>
 

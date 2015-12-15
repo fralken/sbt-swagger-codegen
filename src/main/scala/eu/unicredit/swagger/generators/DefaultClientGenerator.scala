@@ -148,10 +148,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
   //the next two methods have to be refactored
   def getParamsToBody(params: Seq[Parameter]): Map[String, Tree] = {
     params.filter {
-      case path: PathParameter => false
-      case query: QueryParameter => false
       case body: BodyParameter => true
-      case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
+      case _ => false
     }.flatMap {
       case bp: BodyParameter =>
         
@@ -165,10 +163,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
   def getPlainParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] = {
     params.filter {
-      case path: PathParameter => false
-      case query: QueryParameter => false
       case body: BodyParameter => true
-      case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
+      case _ => false
     }.flatMap {
       case bp: BodyParameter =>
         val tree: ValDef = PARAM(bp.getName, noOptParamType(bp))

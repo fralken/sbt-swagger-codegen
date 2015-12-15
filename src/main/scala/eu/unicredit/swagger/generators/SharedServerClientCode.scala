@@ -46,6 +46,7 @@ trait SharedServerClientCode extends StringUtils with SwaggerConversion {
     params.filter {
       case path: PathParameter => true
       case query: QueryParameter => true
+      case header: HeaderParameter => true
       case body: BodyParameter => false
       case _ => println("unmanaged parameter please contact the developer to implement it XD"); false
     }.sortWith((p1, p2) => //the order must be verified...
@@ -64,16 +65,7 @@ trait SharedServerClientCode extends StringUtils with SwaggerConversion {
           }
         case _ => true
       }).map(p => {
-      (p.getName,
-        (p match {
-          case pp: PathParameter =>
-            PARAM(pp.getName, paramType(pp))
-          case qp: QueryParameter =>
-            if (qp.getDefaultValue == null)
-              PARAM(qp.getName, paramType(qp))
-            else
-              PARAM(qp.getName, paramType(qp))
-        }): ValDef)
+      (p.getName, PARAM(p.getName, paramType(p)): ValDef)
     }).toMap
   }
 

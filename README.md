@@ -58,7 +58,7 @@ Tasks are provided in order to be chained with other tasks (ex: ```(compile in C
 - `swaggerCodeProvidedPackage`	-> "eu.unicredit" (where you will provide business logic server method implementation)
 - `swaggerModelCodeTargetDir`	-> "/src/main/scala" (path where to put generated model files)
 - `swaggerClientCodeTargetDir`	-> "/src/main/scala" (path where to put generated client code files)
-- `swaggerPlayServerRoutesFile`	-> "/src/main/resources/routes" (routes file to be generated)
+- `swaggerServerRoutesFile`	-> "/src/main/resources/routes" (routes file to be generated)
 - `swaggerGenerateControllers`	-> true (to be disabled if you want to provide fully costom controllers with all the boilerplate)
 
 Moreover you can extend this plugin by providing alternative implementations of the generators via:

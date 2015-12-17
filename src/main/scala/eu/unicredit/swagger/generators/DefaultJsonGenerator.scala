@@ -15,16 +15,13 @@
 package eu.unicredit.swagger.generators
 
 import sbt._
-import eu.unicredit.swagger.{SwaggerConversion, StringUtils}
+import eu.unicredit.swagger.SwaggerConversion
 
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
 
 import io.swagger.parser.SwaggerParser
-import io.swagger.models.properties._
-import io.swagger.models._
-import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
 
 object DefaultJsonGenerator {
@@ -64,7 +61,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
     } yield {
 
       val vd =
-        VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := ({    
+        VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := {
       c match {
         case "Reads" => ANONDEF(s"$c[$name]") := LAMBDA(PARAM("json")) ==> REF("JsSuccess") APPLY (REF(name) APPLY (
           for ((pname, prop) <- model.getProperties) yield {
@@ -76,7 +73,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
         case "Writes" => ANONDEF(s"$c[$name]") := LAMBDA(PARAM("o")) ==> REF("JsObject") APPLY (SeqClass APPLY (
           for ((pname, prop) <- model.getProperties) yield 
             LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))
-      }})
+      }}
 
       vd
     }).toList

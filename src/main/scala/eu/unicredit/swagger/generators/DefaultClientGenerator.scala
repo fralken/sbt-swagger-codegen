@@ -15,14 +15,12 @@
 package eu.unicredit.swagger.generators
 
 import sbt._
-import eu.unicredit.swagger.{SwaggerConversion, StringUtils}
 
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
 
 import io.swagger.parser.SwaggerParser
-import io.swagger.models.properties._
 import io.swagger.models._
 import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
@@ -69,8 +67,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
         val okRespType =
           respType(swaggerOp.getResponses.get).
-          filter(x => (x._2 ne null)).
-            headOption.map(x => x._1 ->
+          find(x => x._2 ne null).
+            map(x => x._1 ->
               Option(x._2.getSchema).map(y => noOptPropType(y)))
 
         if (okRespType.isEmpty)
@@ -106,8 +104,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       } inPackage clientPackageName
 
     val tree =
-        (CLASSDEF(clientName) withParams PARAM("baseUrl", StringClass) := BLOCK(
-          completePaths.map(composeClient).flatten))
+        CLASSDEF(clientName) withParams PARAM("baseUrl", StringClass) := BLOCK(
+          completePaths.map(composeClient).flatten)
 
     Seq(SyntaxString(clientName, treeToString(imports), treeToString(tree)))
   }

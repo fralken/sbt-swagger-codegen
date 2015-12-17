@@ -14,15 +14,11 @@
 */
 package eu.unicredit.swagger.generators
 
-import sbt._
-import eu.unicredit.swagger.{SwaggerConversion, StringUtils}
-
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
 
 import io.swagger.parser.SwaggerParser
-import io.swagger.models.properties._
 import io.swagger.models._
 import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
@@ -83,7 +79,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     val routes =
       completePaths.flatMap(composeRoutes)
 
-    if (routes.size > 0) Some(routes.mkString("\n\n", "\n\n", "\n"))
+    if (routes.nonEmpty) Some(routes.mkString("\n\n", "\n\n", "\n"))
     else None
   }
 
@@ -127,8 +123,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         try
         if (!op.
             getProduces.
-            filterNot(_ == "application/json").
-            isEmpty)
+            forall(_ == "application/json"))
           println("WARNING - only 'application/json' is supported")
         catch {
           case _ : Throwable =>
@@ -139,8 +134,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
         val okRespType =
           respType(op.getResponses.get).
-          filter(x => (x._2 ne null)).
-            headOption.map(x => x._1 ->
+          find(x => x._2 ne null).
+            map(x => x._1 ->
               Option(x._2.getSchema).map(y => noOptPropType(y)))
 
         if (okRespType.isEmpty)
@@ -159,8 +154,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       } inPackage controllerPackageName
 
     val tree =
-        (OBJECTDEF(controllerName) withParents (controllerName + "Impl") := BLOCK(
-          completePaths.map(composeController).flatten))
+        OBJECTDEF(controllerName) withParents (controllerName + "Impl") := BLOCK(
+          completePaths.map(composeController).flatten)
         
     Seq(SyntaxString(controllerName, treeToString(imports), treeToString(tree)))
   }

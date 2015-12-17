@@ -14,8 +14,7 @@
 */
 package eu.unicredit.swagger.generators
 
-import sbt._
-import eu.unicredit.swagger.{SwaggerConversion, StringUtils}
+import eu.unicredit.swagger.SwaggerConversion
 
 import treehugger.forest._
 import definitions._
@@ -23,8 +22,6 @@ import treehuggerDSL._
 
 import io.swagger.parser.SwaggerParser
 import io.swagger.models.properties._
-import io.swagger.models._
-import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
 
 object DefaultPlay {

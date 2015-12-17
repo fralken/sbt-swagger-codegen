@@ -16,7 +16,7 @@ After cloning the repository you need to publish it locally.
 
 And then as any other sbt plugin you're just required to delcare it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "${VERSION}")`
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.4-SNAPSHOT")`
 
 ## Quick start
 
@@ -35,8 +35,8 @@ All available commands from the plugin
 
 - `swaggerCodeGen`
 - `swaggerClean`  -> cleans up already generated code
-- `swaggerPlayServerCodeGen` (experimental)   -> generates Play Framework code
-- `swaggerPlayClientCodeGen` (experimental)   -> generates client code using `play-ws`
+- `swaggerServerCodeGen` (experimental)   -> generates Play Framework code
+- `swaggerClientCodeGen` (experimental)   -> generates client code using `play-ws`
 
 ## Tasks
 
@@ -44,8 +44,8 @@ Tasks are provided in order to be chained with other tasks (ex: ```(compile in C
 
 - `swaggerCleanTask`
 - `swaggerCodeGenTask`
-- `swaggerPlayServerCodeGenTask`
-- `swaggerPlayClientCodeGenTask`
+- `swaggerServerCodeGenTask`
+- `swaggerClientCodeGenTask`
 
 ## Keys (and defaults)
 
@@ -58,16 +58,23 @@ Tasks are provided in order to be chained with other tasks (ex: ```(compile in C
 - `swaggerModelCodeTargetDir`	-> "/src/main/scala" (path where to put generated model files)
 - `swaggerClientCodeTargetDir`	-> "/src/main/scala" (path where to put generated client code files)
 - `swaggerPlayServerRoutesFile`	-> "/src/main/resources/routes" (routes file to be generated)
-- `swaggerGeneratePlayControllers`	-> true (to be disabled if you want to provide fully costom controllers with all the boilerplate)
+- `swaggerGenerateControllers`	-> true (to be disabled if you want to provide fully costom controllers with all the boilerplate)
+
+Moreover you can extend this plugin by providing alternative implementations of the generators via:
+
+- `swaggerModelCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultModelGenerator() (the class used to generate the model classes)
+- `swaggerJsonCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultJsonGenerator() (the class used to generate the json marshaller/unmarshaller)
+- `swaggerServerCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultServerGenerator() (the class used to generate the Server classes)
+- `swaggerModelClientGenClass` -> new eu.unicredit.swagger.generators.DefaultClientGenerator() (the class used to generate the client classes)
 
 ## Dependencies
 
 - scala version 2.11.X
-- play-sbt-plugin 2.4.0
-- play-json 2.4.0
+- play-sbt-plugin 2.4.4
+- play-json 2.4.4
 - joda-time 2.7
 - joda-convert 1.7
-- play-ws 2.4.0 (only if you use client)
+- play-ws 2.4.4 (only if you use client)
 
 ### Limitations
 
@@ -82,7 +89,7 @@ PR are really welcome and please open an Issue if you find something not working
 ## Authors:
 
 * Andrea Peruffo: <https://github.com/andreaTP>
-* Marco Firrincieli: <https://github.com/mfirry>
 * Francesco Montecuccoli Degli Erri <https://github.com/fralken>
+* Marco Firrincieli: <https://github.com/mfirry>
 
 **** This is a work in progress and are not done with it! ****

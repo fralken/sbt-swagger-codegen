@@ -11,12 +11,14 @@ This codegenerator is designed specifically for Swagger Spec Version 2.0. Moreov
 
 ## Install
 
-After cloning the repository you need to publish it locally.
-`sbt publishLocal`
-
-And then as any other sbt plugin you're just required to delcare it inside your `project\plugins.sbt` like this:
+Delcare it inside your `project\plugins.sbt` like this:
 
 `addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.4-SNAPSHOT")`
+
+If you want to stay on our dev-release:
+`sbt publishLocal`
+
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.6-SNAPSHOT")`
 
 ## Quick start
 
@@ -54,7 +56,6 @@ Tasks are provided in order to be chained with other tasks (ex: ```(compile in C
 - `swaggerModelFileSplitting`		-> "singleFile" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
 - `swaggerGeneratePlayJsonRW`		-> true (if you want to generate json Format for your model case classes)
 - `swaggerCodeProvidedPackage`	-> "eu.unicredit" (where you will provide business logic server method implementation)
-- `swaggerServerAsync`			-> false (if the server business logic will work retrieving Future or actual values)
 - `swaggerModelCodeTargetDir`	-> "/src/main/scala" (path where to put generated model files)
 - `swaggerClientCodeTargetDir`	-> "/src/main/scala" (path where to put generated client code files)
 - `swaggerPlayServerRoutesFile`	-> "/src/main/resources/routes" (routes file to be generated)

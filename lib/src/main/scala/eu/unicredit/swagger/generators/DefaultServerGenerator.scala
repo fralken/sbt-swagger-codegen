@@ -23,10 +23,6 @@ import io.swagger.models._
 import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
 
-object DefaultServerGenerator {
-  def dependencies: Seq[sbt.ModuleID] = Seq()
-}
-
 class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode {
 
   def controllerNameFromFileName(fn: String) = objectNameFromFileName(fn, "Controller")

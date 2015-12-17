@@ -24,14 +24,6 @@ import io.swagger.parser.SwaggerParser
 import io.swagger.models.properties._
 import scala.collection.JavaConversions._
 
-object DefaultPlay {
-  val version = "2.4.4"
-}
-
-object DefaultModelGenerator {
-  def dependencies: Seq[sbt.ModuleID] = Seq()
-}
-
 class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
 
   def generateClass(name: String, props: Iterable[(String, Property)], comments: Option[String]): String = {

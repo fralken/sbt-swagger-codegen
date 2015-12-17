@@ -14,8 +14,6 @@
 */
 package eu.unicredit.swagger.generators
 
-import sbt._
-
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
@@ -24,12 +22,6 @@ import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
-
-object DefaultClientGenerator {
-  def dependencies: Seq[sbt.ModuleID] = Seq(
-    "com.typesafe.play" %% "play-ws" % DefaultPlay.version
-  )
-}
 
 class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode {
 

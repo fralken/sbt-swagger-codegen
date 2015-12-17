@@ -14,7 +14,6 @@
 */
 package eu.unicredit.swagger.generators
 
-import sbt._
 import eu.unicredit.swagger.SwaggerConversion
 
 import treehugger.forest._
@@ -23,12 +22,6 @@ import treehuggerDSL._
 
 import io.swagger.parser.SwaggerParser
 import scala.collection.JavaConversions._
-
-object DefaultJsonGenerator {
-  def dependencies: Seq[sbt.ModuleID] = Seq(
-    "com.typesafe.play" %% "play-json" % DefaultPlay.version
-  )
-}
 
 class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
 

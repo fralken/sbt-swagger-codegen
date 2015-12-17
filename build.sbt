@@ -1,33 +1,44 @@
-import SonatypeKeys._
 
-sbtPlugin := true
 
-name := """sbt-swagger-codegen"""
-
-organization := "eu.unicredit"
-
-version := "0.0.5-SNAPSHOT"
-
-crossScalaVersions := Seq("2.10.4")
-
-resolvers += Resolver.sonatypeRepo("releases")
-
-scalacOptions ++= Seq("-target:jvm-1.7",
-					  "-feature",
-            "-deprecation",
-					  "-language:_")
-
-libraryDependencies ++= Seq(
-	"com.eed3si9n" %% "treehugger" % "0.4.1",
-	"io.swagger" % "swagger-parser" % "1.0.13"
+lazy val common: sbt.Project.SettingsDefinition = Seq(
+  organization := "eu.unicredit",
+  version := "0.0.6-SNAPSHOT",
+  crossScalaVersions := Seq("2.10.4"),
+  scalacOptions ++= Seq(
+    "-target:jvm-1.7",
+    "-feature",
+    "-deprecation",
+    "-language:_"),
+  resolvers += Resolver.sonatypeRepo("releases")
 )
+
+lazy val lib = project.
+  in(file("lib")).
+  settings(common: _*).
+  settings(
+    name := """sbt-swagger-codegen-lib""",
+    libraryDependencies ++= Seq(
+      "com.eed3si9n" %% "treehugger" % "0.4.1",
+      "io.swagger" % "swagger-parser" % "1.0.13"
+    )
+  )
+
+lazy val plugin = project.
+  in(file("plugin")).
+  settings(common: _*).
+  settings(
+    name := """sbt-swagger-codegen""",
+    sbtPlugin := true
+  ).dependsOn(lib)
+
+lazy val root = project.in(file(".")).aggregate(lib, plugin)
 
 sonatypeSettings
 
 publishMavenStyle := true
 
 pomIncludeRepository := { x => false }
-
+  
 credentials += Credentials(Path.userHome / ".ivy2" / "sonatype.credentials")
 
 pomExtra := {

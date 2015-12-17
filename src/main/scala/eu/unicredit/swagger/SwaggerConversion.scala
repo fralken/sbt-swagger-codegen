@@ -18,11 +18,8 @@ import treehugger.forest._
 import definitions._
 import treehuggerDSL._
 
-import io.swagger.parser.SwaggerParser
 import io.swagger.models.properties._
-import io.swagger.models._
 import io.swagger.models.parameters._
-import scala.collection.JavaConversions._
 
 trait SwaggerConversion {
 
@@ -47,6 +44,8 @@ trait SwaggerConversion {
       IntClass
     case l: LongProperty =>
       LongClass
+    case i: BaseIntegerProperty =>
+      IntClass
     case m: MapProperty =>
       RootClass.newClass("Map") TYPE_OF (StringClass, noOptPropType(m.getAdditionalProperties))
     case a: ArrayProperty =>

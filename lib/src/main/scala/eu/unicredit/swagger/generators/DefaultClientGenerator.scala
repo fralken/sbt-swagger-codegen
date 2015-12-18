@@ -125,11 +125,18 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK(
         REF("WS") DOT "url" APPLY
           INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url) + urlParams))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
-            LAMBDA(PARAM("resp")) ==>
-            respType._2.map{ typ => {
-              REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT 
-                "as" APPLYTYPE typ
-            }}.getOrElse(BLOCK())
+            LAMBDA(PARAM("resp")) ==> BLOCK {
+              Seq(
+                REF("assert") APPLY INFIX_CHAIN("&&", 
+                  PAREN(REF("resp") DOT "status" INFIX(">", LIT(199))),
+                  (REF("resp") DOT "status" INFIX("<", LIT(300)))
+                ),
+                respType._2.map{ typ => {
+                  REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT 
+                    "as" APPLYTYPE typ
+                  }}.getOrElse(REF("Unit"))
+              )
+            }
           ))
 
     tree

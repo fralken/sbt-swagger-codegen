@@ -209,7 +209,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
         val tree: ValDef = VAL(bp.getName) :=
           REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp) APPLY (
-            REF("getJsonBody") APPLY REF("request")) DOT "get"
+            REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
 
         Some(bp.getName -> tree)
       case _ =>

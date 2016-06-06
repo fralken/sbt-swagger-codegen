@@ -8,3 +8,5 @@ src/main/scala-2.10
 .cache
 .settings
 scalastyle-config.xml
+.ensime
+.ensime_cache

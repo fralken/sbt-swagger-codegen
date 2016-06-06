@@ -17,7 +17,7 @@ package eu.unicredit.swagger.dependencies
 import sbt._
 
 object DefaultPlay {
-  val version = "2.4.4"
+  val version = "2.5.3"
 }
 
 object DefaultModelGenerator {

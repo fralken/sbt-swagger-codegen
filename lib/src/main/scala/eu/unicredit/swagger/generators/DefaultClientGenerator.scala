@@ -91,17 +91,16 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           IMPORT("play.api.libs.ws", "_"),
           IMPORT("play.api.libs.json", "_"),
           IMPORT("javax.inject", "_"),
-          IMPORT("play.api.Play", "current"),
           IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
         )
       } inPackage clientPackageName
 
-    val classDef = (CLASSDEF(clientName)).empty
+    val classDef = CLASSDEF(clientName).empty
     val params1 = "@Inject() (WS: WSClient)"
     val params2 = (CLASSDEF("") withParams PARAM("baseUrl", StringClass)).empty
     val body = BLOCK(completePaths.map(composeClient).flatten)
 
-    Seq(SyntaxString(clientName, treeToString(imports), treeToString(classDef) + " " + params1 + treeToString(params2).replace("class", "") + treeToString(body)))
+    Seq(SyntaxString(clientName, treeToString(imports), treeToString(classDef) + " " + params1 + treeToString(params2).replace("class", "") + " " + treeToString(body)))
   }
 
   def genClientMethod(methodName: String, url: String, opType: String, params: Seq[Parameter], respType: (String, Option[Type])): Tree = {
@@ -131,7 +130,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
               Seq(
                 REF("assert") APPLY INFIX_CHAIN("&&",
                   PAREN(REF("resp") DOT "status" INFIX(">", LIT(199))),
-                  (REF("resp") DOT "status" INFIX("<", LIT(300)))
+                  REF("resp") DOT "status" INFIX("<", LIT(300))
                 ),
                 respType._2.map{ typ => {
                   REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT

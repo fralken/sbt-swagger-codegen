@@ -406,9 +406,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   def checkFileExistence(sDir: File) = {
     if (!sDir.exists() || !sDir.isDirectory)
-      throw new Exception("Provided swagger source dir doesn't exists")
+      throw new Exception(s"Provided swagger source dir $sDir doesn't exists")
     else
       if (sDir.listFiles().count(x => x.getName.endsWith(".json") || x.getName.endsWith(".yaml")) < 1)
-        throw new Exception("There are no files in swagger directory")
+        throw new Exception(s"There are no files in swagger directory $sDir")
   }
 }

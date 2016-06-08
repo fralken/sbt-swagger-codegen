@@ -1,6 +1,6 @@
 
 
-lazy val common: sbt.Project.SettingsDefinition = Seq(
+lazy val common = Seq(
   organization := "eu.unicredit",
   version := "0.0.6-SNAPSHOT",
   crossScalaVersions := Seq("2.10.4"),

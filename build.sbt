@@ -1,5 +1,3 @@
-
-
 lazy val common = Seq(
   organization := "eu.unicredit",
   version := "0.0.6-SNAPSHOT",

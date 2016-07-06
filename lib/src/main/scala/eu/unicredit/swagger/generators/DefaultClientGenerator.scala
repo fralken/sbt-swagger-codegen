@@ -98,7 +98,20 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val classDef = CLASSDEF(clientName).empty
     val params1 = "@Inject() (WS: WSClient)"
     val params2 = (CLASSDEF("") withParams PARAM("baseUrl", StringClass)).empty
-    val body = BLOCK(completePaths.map(composeClient).flatten)
+
+    val UNFOLD: Tree =
+      DEFINFER("unfold") withParams (PARAM("x", OptionClass TYPE_OF RootClass.newClass("Any"))) := BLOCK {
+        REF("x") DOT "map" APPLY {
+          LAMBDA(PARAM("y")) ==> BLOCK {
+            INTERP("s", LIT("$x=$y"))
+          }
+        } DOT "getOrElse" APPLY NEW("String")
+      }
+
+    val body = BLOCK {
+      UNFOLD +:
+      completePaths.map(composeClient).flatten
+    }
 
     Seq(SyntaxString(clientName, treeToString(imports), treeToString(classDef) + " " + params1 + treeToString(params2).replace("class", "") + " " + treeToString(body)))
   }
@@ -116,13 +129,16 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         np match {
           case path: PathParameter => old
           case query: QueryParameter =>
+            val pre =
+              (if (old.contains("?")) "&" else "?")
             val queryValue =
-              if (query.getRequired) query.getName
-              else "{" + query.getName + ".getOrElse(new String)}"
+              if (query.getRequired) pre + query.getName + "=$" + query.getName
+              else
+                "${unfold(" + query.getName + ")}"
 
             old +
               (if (old.contains("?")) "&"
-              else "?") + query.getName + "=$" + queryValue
+              else "?") + queryValue
           case _ => old
         })
 

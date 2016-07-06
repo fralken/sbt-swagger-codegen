@@ -152,7 +152,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     val tree =
         OBJECTDEF(controllerName) withParents (controllerName + "Impl") := BLOCK(
           completePaths.map(composeController).flatten)
-        
+
     Seq(SyntaxString(controllerName, treeToString(imports), treeToString(tree)))
   }
 
@@ -171,7 +171,10 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
               REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)))
           )
         }.getOrElse(
-          REF(resType._1)
+          BLOCK {Seq(
+            REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)),
+            REF(resType._1)
+          )}
         )
 
     val ERROR =
@@ -188,7 +191,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
             REF("err") DOT "printStackTrace"
             ERROR
           }) ENDTRY
-     
+
     val tree: Tree =
       DEFINFER(methodName) withParams methodParams.values := BLOCK {
         ACTION APPLY {
@@ -221,7 +224,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 class DefaultAsyncServerGenerator extends DefaultServerGenerator {
 
   override def generateImports(packageName: String, codeProvidedPackage: String, controllerName: String): Seq[Tree] =
-    super.generateImports(packageName, codeProvidedPackage, controllerName) :+ 
+    super.generateImports(packageName, codeProvidedPackage, controllerName) :+
       IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
 
   override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {

@@ -116,9 +116,13 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         np match {
           case path: PathParameter => old
           case query: QueryParameter =>
+            val queryValue =
+              if (query.getRequired) query.getName
+              else "{" + query.getName + ".getOrElse(new String)}"
+
             old +
               (if (old.contains("?")) "&"
-              else "?") + query.getName + "=$" + query.getName
+              else "?") + query.getName + "=$" + queryValue
           case _ => old
         })
 

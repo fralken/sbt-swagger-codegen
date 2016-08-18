@@ -134,11 +134,11 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
             map(x => x._1 ->
               Option(x._2.getSchema).map(y => noOptPropType(y)))
 
-        if (okRespType.isEmpty)
-          throw new Exception("cannot determine Ok result type for $methodName")
-
         val methodCall =
           genControllerMethod(methodName, op.getParameters, okRespType.get)
+
+        if (okRespType.isEmpty)
+          throw new Exception(s"cannot determine Ok result type for $methodName")
 
         methodCall
       }

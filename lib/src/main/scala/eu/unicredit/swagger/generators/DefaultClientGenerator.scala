@@ -63,12 +63,12 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
             map(x => x._1 ->
               Option(x._2.getSchema).map(y => noOptPropType(y)))
 
-        if (okRespType.isEmpty)
-          throw new Exception("cannot determine Ok result type for $methodName")
-
         val methodName =
           if (op._2.getOperationId != null) op._2.getOperationId
           else throw new Exception("Please provide an operationId in: " + p)
+
+        if (okRespType.isEmpty)
+          throw new Exception(s"cannot determine Ok result type for $methodName")
 
         val opType =
           op._1.toLowerCase

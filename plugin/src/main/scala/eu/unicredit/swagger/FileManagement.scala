@@ -33,6 +33,6 @@ object FileWriter {
   import java.nio.file.Paths
 
   def writeToFile(f: File, s: String) =
-    Files.write(Paths.get(f.getAbsolutePath), s.getBytes)
+    Files.write(Paths.get(f.getAbsolutePath), s getBytes "UTF-8")
 
 }

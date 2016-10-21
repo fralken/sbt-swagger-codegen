@@ -162,33 +162,17 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     tree
   }
 
-  //the next two methods have to be refactored
-  def getParamsToBody(params: Seq[Parameter]): Map[String, Tree] = {
-    params.filter {
-      case body: BodyParameter => true
-      case _ => false
-    }.flatMap {
-      case bp: BodyParameter =>
+  def getParamsToBody(params: Seq[Parameter]): Map[String, Tree] =
+      params.collect {
+        case bp: BodyParameter =>
+          val tree = REF("Json") DOT "toJson" APPLY REF(bp.getName)
+          bp.getName -> tree
+      }.toMap
 
-        val tree = REF("Json") DOT "toJson" APPLY REF(bp.getName)
-
-        Some(bp.getName -> tree)
-      case _ =>
-        None
-    }.toMap
-  }
-
-  def getPlainParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] = {
-    params.filter {
-      case body: BodyParameter => true
-      case _ => false
-    }.flatMap {
-      case bp: BodyParameter =>
-        val tree: ValDef = PARAM(bp.getName, noOptParamType(bp))
-
-        Some(bp.getName -> tree)
-      case _ =>
-        None
-    }.toMap
-  }
+  def getPlainParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] =
+      params.collect {
+        case bp: BodyParameter =>
+          val tree: ValDef = PARAM(bp.getName, noOptParamType(bp))
+          bp.getName -> tree
+      }.toMap
 }

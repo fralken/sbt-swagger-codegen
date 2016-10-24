@@ -131,14 +131,13 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           case query: QueryParameter =>
             val pre =
               (if (old.contains("?")) "&" else "?")
+
             val queryValue =
-              if (query.getRequired) pre + query.getName + "=$" + query.getName
+              if (query.getRequired) query.getName + "=$" + query.getName
               else
                 "${unfold(" + query.getName + ")}"
 
-            old +
-              (if (old.contains("?")) "&"
-              else "?") + queryValue
+            old + pre + queryValue
           case _ => old
         })
 

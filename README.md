@@ -11,7 +11,7 @@ This codegenerator is designed specifically for Swagger Spec Version 2.0. Moreov
 
 ## Install
 
-Delcare it inside your `project\plugins.sbt` like this:
+Declare it inside your `project\plugins.sbt` like this:
 
 `addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.6-SNAPSHOT")`
 

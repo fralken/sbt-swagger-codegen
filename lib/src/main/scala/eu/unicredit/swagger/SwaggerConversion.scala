@@ -58,17 +58,10 @@ trait SwaggerConversion {
       RootClass.newClass(r.getSimpleRef)
     case dt: DateTimeProperty =>
       InstantClass
+    case null =>
+      throw new Exception("Trying to resolve null property")
     case any =>
-      any match {
-        case ar: AnyRef =>
-          if (ar eq null)
-            throw new Exception("Trying to resolve null class " + any + " for property " + any.getName)
-          else {
-            AnyClass
-          }
-        case a =>
-          throw new Exception("Unmanaged primitive type " + a + " for property " + any.getName)
-      }
+      AnyClass
     }
   }
 

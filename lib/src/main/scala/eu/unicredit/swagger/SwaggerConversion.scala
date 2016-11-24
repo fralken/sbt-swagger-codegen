@@ -30,6 +30,8 @@ trait SwaggerConversion {
       noOptPropType(p)
   }
 
+  private lazy val InstantClass   = definitions.getClass("java.time.Instant")
+   
   def noOptPropType(p: Property): Type = {
     p match {
     case s: StringProperty =>
@@ -54,6 +56,8 @@ trait SwaggerConversion {
       BigDecimalClass
     case r: RefProperty =>
       RootClass.newClass(r.getSimpleRef)
+    case dt: DateTimeProperty =>
+      InstantClass
     case any =>
       any match {
         case ar: AnyRef =>

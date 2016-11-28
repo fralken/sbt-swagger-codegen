@@ -34,7 +34,11 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
     val params: Iterable[ValDef] = for ((pname, prop) <- props)
       yield PARAM(pname, propType(prop)): ValDef
 
-    val tree: Tree = CLASSDEF(GenClass) withFlags Flags.CASE withParams params
+    val tree: Tree =
+      if (params.isEmpty)
+        OBJECTDEF(GenClass) withFlags Flags.CASE
+      else
+        CLASSDEF(GenClass) withFlags Flags.CASE withParams params
 
     val resTree =
       comments.map(tree withComment _).getOrElse(tree)
@@ -55,16 +59,13 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
 
     val models = swagger.getDefinitions
 
-    val modelss =
-      for {
-        (name, model) <- models
-        description = model.getDescription
-        properties = model.getProperties
-      } yield
-        SyntaxString(name,
-                     generateModelInit(destPackage),
-                     generateClass(name, properties, Option(description)))
-
-    modelss
+    for {
+      (name, model) <- models
+    } yield
+      SyntaxString(name,
+                   generateModelInit(destPackage),
+                   generateClass(name,
+                                 getProperties(model),
+                                 Option(model.getDescription)))
   }
 }

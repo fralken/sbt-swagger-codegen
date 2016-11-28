@@ -15,12 +15,12 @@
 package eu.unicredit.swagger.generators
 
 import eu.unicredit.swagger.SwaggerConversion
-
 import treehugger.forest._
 import definitions._
+import io.swagger.models.properties.Property
 import treehuggerDSL._
-
 import io.swagger.parser.SwaggerParser
+
 import scala.collection.JavaConversions._
 
 class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
@@ -58,7 +58,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
             case "Reads" =>
               ANONDEF(s"$c[$name]") := LAMBDA(PARAM("json")) ==> REF(
                 "JsSuccess") APPLY (REF(name) APPLY (
-                for ((pname, prop) <- model.getProperties) yield {
+                for ((pname, prop) <- getProperties(model)) yield {
                   val mtd = if (!prop.getRequired) "asOpt" else "as"
 
                   PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd APPLYTYPE noOptPropType(
@@ -67,7 +67,8 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
               ))
             case "Writes" =>
               ANONDEF(s"$c[$name]") := LAMBDA(PARAM("o")) ==> REF("JsObject") APPLY (SeqClass APPLY (for ((pname,
-                                                                                                           prop) <- model.getProperties)
+                                                                                                           prop) <- getProperties(
+                                                                                                            model))
                 yield
                   LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(
                     REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF(

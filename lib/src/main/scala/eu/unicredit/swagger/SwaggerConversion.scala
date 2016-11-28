@@ -16,10 +16,12 @@ package eu.unicredit.swagger
 
 import treehugger.forest._
 import definitions._
+import io.swagger.models.Model
 import treehuggerDSL._
-
 import io.swagger.models.properties._
 import io.swagger.models.parameters._
+
+import scala.collection.JavaConversions._
 
 trait SwaggerConversion {
 
@@ -84,5 +86,10 @@ trait SwaggerConversion {
       case rp: RefParameter =>
         RootClass.newClass(rp.getSimpleRef)
     }
+  }
+
+  def getProperties(model: Model): Iterable[(String, Property)] = {
+    val props = model.getProperties
+    if (props == null) Iterable.empty else props
   }
 }

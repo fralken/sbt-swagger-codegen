@@ -25,29 +25,21 @@ By default, the plugin will assume you have put your `yaml` Swagger specificatio
 
 If so, you can then just run `swaggerCodeGen` and it'll produce your *model's* as case classes under `src/main/scala/swagger/codegen` and [Play Framework](www.playframework.com) [Formats](https://www.playframework.com/documentation/2.4.x/ScalaJsonCombinators#Format) for them (for json serialization) under `src/main/scala/swagger/codegen/json`.
 
+## Tasks
 
-## Commands
-
-All available commands from the plugin
+All available tasks from the plugin
 
 - `swaggerCodeGen`
 - `swaggerClean` -> cleans up already generated code
 - `swaggerServerCodeGen` -> generates Play Framework code
 - `swaggerClientCodeGen` -> generates client code using `play-ws`
 
-## Tasks
-
-Tasks are provided in order to be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerPlayServerCodeGenTask```
-
-- `swaggerCleanTask`
-- `swaggerCodeGenTask`
-- `swaggerServerCodeGenTask`
-- `swaggerClientCodeGenTask`
+Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerServerCodeGen```
 
 ## Keys (and defaults)
 
 - `swaggerSourcesDir` -> "/src/main/swagger" (path where to search for swagger files)
-- `swaggerCodegenPackage` -> "swagger.codegen" (package name of the generated sources)
+- `swaggerCodeGenPackage` -> "swagger.codegen" (package name of the generated sources)
 - `swaggerModelFileSplitting` -> "singleFile" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
 - `swaggerGeneratePlayJsonRW` -> true (if you want to generate json Format for your model case classes)
 - `swaggerCodeProvidedPackage` -> "eu.unicredit" (where you will provide business logic server method implementation)

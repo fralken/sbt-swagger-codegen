@@ -99,17 +99,21 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val params1 = "@Inject() (WS: WSClient)"
     val params2 = (CLASSDEF("") withParams PARAM("baseUrl", StringClass)).empty
 
-    val UNFOLD: Tree =
-      DEFINFER("unfold") withParams (PARAM("x", OptionClass TYPE_OF RootClass.newClass("Any"))) := BLOCK {
-        REF("x") DOT "map" APPLY {
-          LAMBDA(PARAM("y")) ==> BLOCK {
-            INTERP("s", LIT("$x=$y"))
-          }
-        } DOT "getOrElse" APPLY NEW("String")
+    val PARAMS: Tree =
+      DEFINFER("params") withFlags(Flags.PRIVATE) withParams(PARAM("pairs",  TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass)))) := BLOCK {
+        (
+          IF (REF("pairs") DOT "nonEmpty")
+          THEN (
+            REF("pairs") 
+            DOT "collect" APPLY BLOCK(CASE (TUPLE(ID("k"), REF("Some") UNAPPLY(ID("v")))) ==> (REF("k") INFIX ("+", LIT("=")) INFIX ("+", REF("v"))))
+            DOT "mkString" APPLY (LIT("?"), LIT("&"), LIT(""))
+          )
+          ELSE LIT("")
+        )
       }
 
     val body = BLOCK {
-      UNFOLD +:
+      PARAMS +:
       completePaths.map(composeClient).flatten
     }
 
@@ -124,27 +128,19 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val methodParams = getMethodParamas(params)
 
     //probably to be fixed with a custom ordering
-    val urlParams =
-      params.foldLeft("")((old, np) =>
-        np match {
-          case path: PathParameter => old
-          case query: QueryParameter =>
-            val pre =
-              (if (old.contains("?")) "&" else "?")
-
-            val queryValue =
-              if (query.getRequired) query.getName + "=$" + query.getName
-              else
-                "${unfold(" + query.getName + ")}"
-
-            old + pre + queryValue
-          case _ => old
-        })
-
+    val urlParams:Seq[Tree] =
+        params collect { case query:QueryParameter =>
+          val name = query.getName
+          LIT(name) INFIX ("->", 
+            if (query.getRequired) REF("Some") APPLY REF(name)
+            else                   REF(name)
+          )
+        }
+        
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK(
         REF("WS") DOT "url" APPLY
-          INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url) + urlParams))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
+          (INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url)))) INFIX ("+", THIS DOT "params" APPLY (urlParams:_*))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
             LAMBDA(PARAM("resp")) ==> BLOCK {
               Seq(
                 REF("assert") APPLY INFIX_CHAIN("&&",

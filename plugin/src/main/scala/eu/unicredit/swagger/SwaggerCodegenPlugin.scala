@@ -73,6 +73,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val swaggerModelFilesSplitting =
       settingKey[String]("swaggerModelFileSplitting")
 
+    val swaggerGenerateModel = settingKey[Boolean]("swaggerGenerateModel")
+    val swaggerGenerateClient = settingKey[Boolean]("swaggerGenerateClient")
+    val swaggerGenerateServer = settingKey[Boolean]("swaggerGenerateServer")
     val swaggerGenerateJsonRW = settingKey[Boolean]("swaggerGenerateJsonRW")
 
     val swaggerCodeProvidedPackage =
@@ -101,18 +104,41 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   override val requires: Plugins = plugins.JvmPlugin
   override def trigger = noTrigger
 
+  private val modelDyn =
+    Def.taskDyn {
+      if (swaggerGenerateModel.value) Def.task { swaggerModelCodeGen.value } else
+        Def.task { Seq.empty[File] }
+    }
+  private val clientDyn =
+    Def.taskDyn {
+      if (swaggerGenerateClient.value) Def.task { swaggerClientCodeGen.value } else
+        Def.task { Seq.empty[File] }
+    }
+  private val serverDyn =
+    Def.taskDyn {
+      if (swaggerGenerateServer.value) Def.task { swaggerServerCodeGen.value } else
+        Def.task { Seq.empty[File] }
+    }
+
   override val projectSettings = {
     Seq(
+      watchSources ++= swaggerSourcesDir.value.***.get,
+      sourceGenerators in Compile += Def.task {
+        modelDyn.value ++ clientDyn.value ++ serverDyn.value
+      }.taskValue,
+      // should generate SRID code in src_managed, see issue #31
+      //resourceGenerators in Compile += Def.task { swaggerRoutesCodeGen.value }.taskValue,
       swaggerSourcesDir := (sourceDirectory in Compile).value / "swagger",
       swaggerModelCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "model",
       swaggerServerCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "server",
       swaggerClientCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "client",
       swaggerServerRoutesFile := (resourceDirectory in Compile).value / "routes",
-      // TODO should be generated, but is not not picked up by play if done like this
-      // swaggerServerRoutesFile     := (resourceManaged in Compile).value / "swagger" / "routes",
       swaggerCodeGenPackage := "swagger.codegen",
       swaggerCodeProvidedPackage := "com.yourcompany",
       swaggerModelFilesSplitting := "singleFile",
+      swaggerGenerateModel := true,
+      swaggerGenerateClient := true,
+      swaggerGenerateServer := true,
       swaggerGenerateJsonRW := true,
       swaggerModelCodeGenClass := new DefaultModelGenerator(),
       swaggerJsonCodeGenClass := new DefaultJsonGenerator(),

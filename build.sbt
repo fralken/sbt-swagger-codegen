@@ -19,7 +19,6 @@ lazy val lib = project.
       "com.eed3si9n" %% "treehugger" % "0.4.1",
       "io.swagger" % "swagger-parser" % "1.0.23",
       "com.google.guava" % "guava" % "20.0",
-      "org.scalactic" %% "scalactic" % "3.0.1",
       "org.scalatest" %% "scalatest" % "3.0.1" % "test"
     )
   )

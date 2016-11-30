@@ -36,6 +36,7 @@ All available tasks from the plugin
 - `swaggerCodeGen`
 - `swaggerClean` -> cleans up already generated code
 - `swaggerServerCodeGen` -> generates Play Framework code
+- `swaggerRoutesCodeGen` -> generates Play Framework routes
 - `swaggerClientCodeGen` -> generates client code using `play-ws`
 
 Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerServerCodeGen```.

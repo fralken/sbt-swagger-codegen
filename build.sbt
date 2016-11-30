@@ -1,19 +1,19 @@
 lazy val common = Seq(
-  organization := "eu.unicredit",
-  version := "0.0.6-SNAPSHOT",
-  crossScalaVersions := Seq("2.10.4"),
-  scalacOptions ++= Seq(
-    "-target:jvm-1.7",
-    "-feature",
-    "-deprecation",
-    "-language:_"),
-  resolvers += Resolver.sonatypeRepo("releases")
-) ++ sonatypePublish
+    organization := "eu.unicredit",
+    version := "0.0.7-SNAPSHOT",
+    crossScalaVersions := Seq("2.10.4"),
+    scalacOptions ++= Seq("-target:jvm-1.7",
+                          "-feature",
+                          "-deprecation",
+                          "-language:_"),
+    resolvers += Resolver.sonatypeRepo("releases")
+  ) ++ sonatypePublish
 
-lazy val lib = project.
-  in(file("lib")).
-  settings(common: _*).
-  settings(
+lazy val lib = project
+  .in(file("lib"))
+  .settings(common)
+  .settings(reformatOnCompileSettings)
+  .settings(
     name := """sbt-swagger-codegen-lib""",
     libraryDependencies ++= Seq(
       "com.eed3si9n" %% "treehugger" % "0.4.1",
@@ -23,25 +23,34 @@ lazy val lib = project.
     )
   )
 
-lazy val plugin = project.
-  in(file("plugin")).
-  settings(common: _*).
-  settings(
+lazy val plugin = project
+  .in(file("plugin"))
+  .settings(common)
+  .settings(reformatOnCompileSettings)
+  .settings(
     name := """sbt-swagger-codegen""",
     sbtPlugin := true
-  ).
-  dependsOn(lib).
-  aggregate(lib)
+  )
+  .dependsOn(lib)
+
+lazy val root = project
+  .in(file("."))
+  .settings(reformatOnCompileSettings)
+  .settings(
+    publish := {}
+  )
+  .aggregate(lib, plugin)
 
 publishArtifact := false
 
-sonatypePublish
-
 lazy val sonatypePublish = sonatypeSettings ++ Seq(
-  publishMavenStyle := true,
-  pomIncludeRepository := { x => false },
-  credentials += Credentials(Path.userHome / ".ivy2" / "sonatype.credentials"),
-  pomExtra := {
+    publishMavenStyle := true,
+    pomIncludeRepository := { x =>
+    false
+  },
+    credentials += Credentials(
+      Path.userHome / ".ivy2" / "sonatype.credentials"),
+    pomExtra := {
     <url>https://github.com/unicredit/sbt-swagger-codegen</url>
     <licenses>
       <license>
@@ -67,4 +76,4 @@ lazy val sonatypePublish = sonatypeSettings ++ Seq(
       </developer>
     </developers>
   }
-)
+  )

@@ -146,7 +146,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
           codeProvidedPackage = swaggerCodeProvidedPackage.value,
           targetRoutesFile = swaggerServerRoutesFile.value.getAbsoluteFile,
-          generateControllers = swaggerGenerateControllers.value,
           serverGenerator = swaggerServerCodeGenClass.value
         )
       },
@@ -256,7 +255,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                                sourcesDir: File,
                                codeProvidedPackage: String,
                                targetRoutesFile: File,
-                               generateControllers: Boolean,
                                serverGenerator: ServerGenerator) = {
     checkFileExistence(sourcesDir)
 
@@ -275,23 +273,21 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
     IO write (targetRoutesFile, sr)
 
-    if (generateControllers) {
-      val controllers: List[SyntaxString] =
-        (for {
-          file <- sourcesDir.listFiles()
-          fName = file.getName
-          fPath = file.getAbsolutePath
-          if fName.endsWith(".json") || fName.endsWith(".yaml")
-        } yield {
-          serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
-        }).flatten.toList
+    val controllers: List[SyntaxString] =
+      (for {
+        file <- sourcesDir.listFiles()
+        fName = file.getName
+        fPath = file.getAbsolutePath
+        if fName.endsWith(".json") || fName.endsWith(".yaml")
+      } yield {
+        serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
+      }).flatten.toList
 
-      val destDir = packageDir(targetDir, codegenPackage + ".controller")
+    val destDir = packageDir(targetDir, codegenPackage + ".controller")
 
-      controllers.foreach {
-        case ss =>
-          IO write (destDir / (ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
-      }
+    controllers.foreach {
+      case ss =>
+        IO write (destDir / (ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
     }
   }
 

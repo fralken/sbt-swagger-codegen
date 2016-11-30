@@ -98,7 +98,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   }
 
   import autoImport._
-  override def trigger = allRequirements
+  override val requires: Plugins = plugins.JvmPlugin
+  override def trigger = noTrigger
 
   override val projectSettings = {
     Seq(

@@ -185,6 +185,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                          jsonGenerator: JsonGenerator): Seq[File] = {
 
     checkFileExistence(sourcesDir)
+    IO delete targetDir
 
     val models: Map[String, Iterable[SyntaxString]] =
       (for {
@@ -264,6 +265,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                                codeProvidedPackage: String,
                                serverGenerator: ServerGenerator): Seq[File] = {
     checkFileExistence(sourcesDir)
+    IO delete targetDir
 
     val controllers: List[SyntaxString] =
       (for {
@@ -290,6 +292,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                                targetRoutesFile: File,
                                serverGenerator: ServerGenerator) = {
     checkFileExistence(sourcesDir)
+    IO delete targetRoutesFile
 
     val routes: String =
       (for {
@@ -314,6 +317,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                                targetDir: File,
                                clientGenerator: ClientGenerator): Seq[File] = {
     checkFileExistence(sourcesDir)
+    IO delete targetDir
 
     val clients: List[SyntaxString] =
       (for {

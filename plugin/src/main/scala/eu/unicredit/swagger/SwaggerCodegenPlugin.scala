@@ -103,11 +103,13 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   override val projectSettings = {
     Seq(
-      swaggerSourcesDir := baseDirectory.value / "src" / "main" / "swagger",
-      swaggerModelCodeTargetDir := baseDirectory.value / "src" / "main" / "scala",
-      swaggerServerCodeTargetDir := baseDirectory.value / "src" / "main" / "scala",
-      swaggerClientCodeTargetDir := baseDirectory.value / "src" / "main" / "scala",
-      swaggerServerRoutesFile := baseDirectory.value / "src" / "main" / "resources" / "routes",
+      swaggerSourcesDir := (sourceDirectory in Compile).value / "swagger",
+      swaggerModelCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "model",
+      swaggerServerCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "server",
+      swaggerClientCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "client",
+      swaggerServerRoutesFile := (resourceDirectory in Compile).value / "routes",
+      // TODO should be generated, but is not not picked up by play if done like this
+      // swaggerServerRoutesFile     := (resourceManaged in Compile).value / "swagger" / "routes",
       swaggerCodeGenPackage := "swagger.codegen",
       swaggerCodeProvidedPackage := "com.yourcompany",
       swaggerModelFilesSplitting := "singleFile",

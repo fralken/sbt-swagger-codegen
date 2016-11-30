@@ -84,14 +84,15 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val swaggerClean = taskKey[Unit]("Clean swagger generated packages")
 
     val swaggerCodeGen =
-      taskKey[Unit]("Generate swagger models and json converters")
+      taskKey[Seq[File]]("Generate swagger models and json converters")
 
     val swaggerServerCodeGen =
-      taskKey[Unit]("Generate swagger server controllers boilerplate")
+      taskKey[Seq[File]]("Generate swagger server controllers boilerplate")
 
-    val swaggerRoutesCodeGen = taskKey[Unit]("Generate swagger server routes")
+    val swaggerRoutesCodeGen =
+      taskKey[Seq[File]]("Generate swagger server routes")
 
-    val swaggerClientCodeGen = taskKey[Unit](
+    val swaggerClientCodeGen = taskKey[Seq[File]](
       "Generate swagger client class with WS calls to specific routes")
 
   }
@@ -181,7 +182,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                          generateJson: Boolean,
                          targetDir: File,
                          modelGenerator: ModelGenerator,
-                         jsonGenerator: JsonGenerator) = {
+                         jsonGenerator: JsonGenerator): Seq[File] = {
 
     checkFileExistence(sourcesDir)
 
@@ -253,13 +254,15 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           jsonFormats.map(_.code).mkString("\n\n", "\n\n", "\n")
       IO write (jsonDir / "package.scala", code)
     }
+
+    (destDir ** -DirectoryFilter).get
   }
 
   def swaggerServerCodeGenImpl(targetDir: File,
                                codegenPackage: String,
                                sourcesDir: File,
                                codeProvidedPackage: String,
-                               serverGenerator: ServerGenerator) = {
+                               serverGenerator: ServerGenerator): Seq[File] = {
     checkFileExistence(sourcesDir)
 
     val controllers: List[SyntaxString] =
@@ -278,6 +281,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       case ss =>
         IO write (destDir / (ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
     }
+
+    (destDir ** -DirectoryFilter).get
   }
 
   def swaggerRoutesCodeGenImpl(codegenPackage: String,
@@ -300,12 +305,14 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       routes.split("\n").toList.distinct.mkString("\n", "\n\n", "\n")
 
     IO write (targetRoutesFile, sr)
+
+    Seq(targetRoutesFile)
   }
 
   def swaggerClientCodeGenImpl(codegenPackage: String,
                                sourcesDir: File,
                                targetDir: File,
-                               clientGenerator: ClientGenerator) = {
+                               clientGenerator: ClientGenerator): Seq[File] = {
     checkFileExistence(sourcesDir)
 
     val clients: List[SyntaxString] =
@@ -324,6 +331,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       case ss =>
         IO write (destDir / (ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
     }
+
+    (destDir ** -DirectoryFilter).get
   }
 
   def checkFileExistence(sDir: File) = {

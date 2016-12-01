@@ -66,8 +66,8 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
                 }
               ))
             case "Writes" =>
-              ANONDEF(s"$c[$name]") := LAMBDA(PARAM("o")) ==> REF("JsObject") APPLY (SeqClass APPLY
-                (for ((pname, prop) <- getProperties(model))
+              ANONDEF(s"$c[$name]") := LAMBDA(PARAM("o")) ==> REF("JsObject") APPLY (SeqClass APPLY (
+                for ((pname, prop) <- getProperties(model))
                 yield
                   LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(
                     REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF(
@@ -83,8 +83,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
                    vds: List[ValDef]): Iterable[SyntaxString] = {
     val pre = generateJsonInit(destPackage)
 
-    val tree =
-      PACKAGEOBJECTDEF("json") := BLOCK(vds)
+    val tree = PACKAGEOBJECTDEF("json") := BLOCK(vds)
 
     val code = treeToString(tree)
     Seq(SyntaxString("json", pre, code))

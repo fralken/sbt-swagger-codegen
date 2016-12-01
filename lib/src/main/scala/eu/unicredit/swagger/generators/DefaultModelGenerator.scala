@@ -30,12 +30,22 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
   def generateClass(name: String,
                     props: Iterable[(String, Property)],
                     comments: Option[String]): String = {
+<<<<<<< HEAD
     val GenClass = RootClass.newClass(asPlainId(name))
 
     val params: Iterable[ValDef] =
       for ((pname, prop) <- props)
         yield PARAM(asVarId(pname), propType(prop)): ValDef
 
+=======
+
+    val GenClass = RootClass.newClass(asPlainId(name))
+
+    val params: Iterable[ValDef] =
+      for ((pname, prop) <- props)
+        yield PARAM(asVarId(pname), propType(prop)): ValDef
+
+>>>>>>> 7fccf5452b6fa9c1a8d0dbcd6f271d8187b0c42e
     val tree: Tree =
       if (params.isEmpty)
         OBJECTDEF(GenClass) withFlags Flags.CASE

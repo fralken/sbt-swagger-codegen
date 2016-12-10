@@ -17,6 +17,7 @@ package eu.unicredit.swagger.generators
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
+import eu.unicredit.swagger.StringUtils._
 
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._

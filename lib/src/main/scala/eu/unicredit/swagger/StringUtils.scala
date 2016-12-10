@@ -14,51 +14,23 @@
  */
 package eu.unicredit.swagger
 
-trait StringUtils {
+object StringUtils {
 
-  def sanitizePath(s: String, replaceChar: Char) =
-    s.toCharArray
-      .foldLeft(("", false))((old, nc) => {
-        if (old._2 && nc != '}') (old._1 + nc, old._2)
-        else if (old._2 && nc == '}') (old._1, false)
-        else if (!old._2 && nc == '{') (old._1 + replaceChar, true)
-        else (old._1 + nc, false)
-      })
-      ._1
-      .trim()
+  private def sanitizePath(s: String): String =
+    s.replaceAll("\\{([^}]+)\\}", ":$1").trim
 
-  def cleanDuplicateSlash(s: String) =
-    s.toCharArray.foldLeft("")((old, nc) => {
-      if (nc == '/' && old.endsWith("/")) old
-      else old + nc
-    })
+  def cleanDuplicateSlash(s: String): String =
+    s.replaceAll("//+", "/")
 
-  def cleanUrl(s: String) = {
-    val str =
-      s.replace("/?", "?")
+  private def cleanUrl(s: String): String =
+    s.replace("/?", "?").replaceAll("/$", "")
 
-    if (str.endsWith("/"))
-      str.substring(0, str.length() - 1)
-    else
-      str
-  }
+  def cleanPathParams(s: String): String =
+    s.replace(":", "$").trim
 
-  def cleanPathParams(s: String) =
-    s.toCharArray
-      .foldLeft("")((old, nc) => {
-        if (nc == ':') old + '$'
-        else old + nc
-      })
-      .trim()
+  def padTo(n: Int, s: String): String =
+    s + " " * (n - s.length max 0)
 
-  def empty(n: Int): String =
-    new String((for (i <- 1 to n) yield ' ').toArray)
-
-  def trimTo(n: Int, s: String): String =
-    new String(empty(n).zipAll(s, ' ', ' ').map(_._2).toArray)
-
-  def doUrl(basePath: String, path: String) = {
-    cleanUrl(cleanDuplicateSlash(basePath + sanitizePath(path, ':')))
-  }
-
+  def doUrl(basePath: String, path: String): String =
+    cleanUrl(cleanDuplicateSlash(basePath + sanitizePath(path)))
 }

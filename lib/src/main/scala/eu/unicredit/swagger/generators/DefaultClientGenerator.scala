@@ -156,6 +156,9 @@ class DefaultClientGenerator
           else REF(name))
       }
 
+    val RuntimeExceptionClass =
+      definitions.getClass("java.lang.RuntimeException")
+
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK(
         REF("WS") DOT "url" APPLY
@@ -164,16 +167,28 @@ class DefaultClientGenerator
             LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url)))) INFIX ("+", THIS DOT "params" APPLY (urlParams: _*))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
           LAMBDA(PARAM("resp")) ==> BLOCK {
             Seq(
-              REF("assert") APPLY INFIX_CHAIN(
-                "&&",
-                PAREN(REF("resp") DOT "status" INFIX (">", LIT(199))),
-                REF("resp") DOT "status" INFIX ("<", LIT(300))),
-              respType._2.map { typ =>
-                {
-                  REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT
-                    "as" APPLYTYPE typ
-                }
-              }.getOrElse(REF("Unit"))
+              IF(
+                INFIX_CHAIN(
+                  "&&",
+                  PAREN(REF("resp") DOT "status" INFIX (">=", LIT(200))),
+                  PAREN(REF("resp") DOT "status" INFIX ("<=", LIT(299)))
+                )
+              ).THEN(
+                  respType._2.map { typ =>
+                    {
+                      REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT
+                        "as" APPLYTYPE typ
+                    }
+                  }.getOrElse(REF("Unit"))
+                )
+                .ELSE(
+                  THROW(RuntimeExceptionClass,
+                        INFIX_CHAIN("+",
+                                    LIT("unexpected response status: "),
+                                    REF("resp") DOT "status",
+                                    LIT(" "),
+                                    REF("resp") DOT "body"))
+                )
             )
           }
         ))

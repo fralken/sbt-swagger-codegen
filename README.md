@@ -33,33 +33,47 @@ If so, then you can just run `swaggerCodeGen` and it will generate your *model's
 
 All available tasks from the plugin
 
-- `swaggerCodeGen`
-- `swaggerClean` -> cleans up already generated code
+- `swaggerModelCodeGen`  -> generated code for model classes
 - `swaggerServerCodeGen` -> generates Play Framework code
-- `swaggerRoutesCodeGen` -> generates Play Framework routes
 - `swaggerClientCodeGen` -> generates client code using `play-ws`
+- `swaggerRoutesCodeGen` -> generates Play Framework routes
+- `swaggerClean` -> cleans up already generated code
 
-Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerServerCodeGen```.
+The `swaggerModelCodeGen`, `swaggerServerCodeGen` and `swaggerClientCodeGen` will run automatically when the swagger sources change.
+
+`swaggerRoutesCodeGen` will _not_ run automatically because it generates code inside the "src/main/resources" directory instead of in "target/scala-2.12/src_managed".
+
+Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerRoutesCodeGen```)
 
 ## Keys (and defaults)
+
+These keys influence properties of the generated code itself:
 
 - `swaggerSourcesDir` -> "/src/main/swagger" (path where to search for swagger files)
 - `swaggerCodeGenPackage` -> "swagger.codegen" (package name of the generated sources)
 - `swaggerModelFileSplitting` -> "singleFile" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
-- `swaggerGeneratePlayJsonRW` -> true (if you want to generate json Format for your model case classes)
 - `swaggerCodeProvidedPackage` -> "eu.unicredit" (where you will provide business logic server method implementation)
-- `swaggerModelCodeTargetDir` -> "/src/main/scala" (path where to put generated model files)
-- `swaggerClientCodeTargetDir` -> "/src/main/scala" (path where to put generated client code files)
-- `swaggerServerCodeTargetDir` -> "/src/main/scala" (path where to put generated client code files)
-- `swaggerServerRoutesFile` -> "/src/main/resources/routes" (routes file to be generated)
-- `swaggerGenerateControllers` -> true (to be disabled if you want to provide fully costom controllers with all the boilerplate)
+
+These keys determine where generated files will be put:
+
+- `swaggerModelCodeTargetDir` -> "target/scala-2.12/src_managed/src/main/swagger/model" (path where to put generated model files)
+- `swaggerGenerateJsonRW` -> true (if you want to generate json Format for your model case classes)
+- `swaggerClientCodeTargetDir` -> "target/scala-2.12/src_managed/src/main/swagger/client" (path where to put generated client code files)
+- `swaggerServerCodeTargetDir` -> "target/scala-2.12/src_managed/src/main/swagger/server" (path where to put generated server code files)
+- `swaggerServerRoutesFile` -> "src/main/resources/routes" (routes file to be generated)
+
+These keys can be used to determine what kind of code should be generated:
+
+- `swaggerGenerateModel` -> true (to be disabled if you do not want model classes to be generated automatically when swagger source code changes)
+- `swaggerGenerateClient` -> true (to be disabled if you do not want client code to ge generated automatically when swagger source code changes)
+- `swaggerGenerateServer` -> true (to be disabled if you do not want client code to ge generated automatically when swagger source code changes)
 
 Moreover, you can extend this plugin by providing alternative implementations of the generators via:
 
 - `swaggerModelCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultModelGenerator() (the class used to generate the model classes)
 - `swaggerJsonCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultJsonGenerator() (the class used to generate the json marshaller/unmarshaller)
 - `swaggerServerCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultServerGenerator() (the class used to generate the Server classes)
-- `swaggerModelClientGenClass` -> new eu.unicredit.swagger.generators.DefaultClientGenerator() (the class used to generate the client classes)
+- `swaggerClientCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultClientGenerator() (the class used to generate the client classes)
 
 ## Dependencies
 

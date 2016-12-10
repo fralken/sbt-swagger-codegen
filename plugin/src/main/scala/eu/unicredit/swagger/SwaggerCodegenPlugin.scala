@@ -83,7 +83,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
      */
     val swaggerClean = taskKey[Unit]("Clean swagger generated packages")
 
-    val swaggerCodeGen =
+    val swaggerModelCodeGen =
       taskKey[Seq[File]]("Generate swagger models and json converters")
 
     val swaggerServerCodeGen =
@@ -127,8 +127,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           clientTargetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile
         )
       },
-      swaggerCodeGen := {
-        swaggerCodeGenImpl(
+      swaggerModelCodeGen := {
+        swaggerModelCodeGenImpl(
           codegenPackage = swaggerCodeGenPackage.value,
           sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
           fileSplittingMode = swaggerModelFilesSplitting.value,
@@ -176,13 +176,13 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     IO delete packageDir(clientTargetDir, codegenPackage)
   }
 
-  def swaggerCodeGenImpl(codegenPackage: String,
-                         sourcesDir: File,
-                         fileSplittingMode: String,
-                         generateJson: Boolean,
-                         targetDir: File,
-                         modelGenerator: ModelGenerator,
-                         jsonGenerator: JsonGenerator): Seq[File] = {
+  def swaggerModelCodeGenImpl(codegenPackage: String,
+                              sourcesDir: File,
+                              fileSplittingMode: String,
+                              generateJson: Boolean,
+                              targetDir: File,
+                              modelGenerator: ModelGenerator,
+                              jsonGenerator: JsonGenerator): Seq[File] = {
 
     checkFileExistence(sourcesDir)
     IO delete targetDir

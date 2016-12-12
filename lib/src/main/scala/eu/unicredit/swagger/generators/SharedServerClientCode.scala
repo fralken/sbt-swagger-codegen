@@ -14,14 +14,15 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.{SwaggerConversion, StringUtils}
+import eu.unicredit.swagger.SwaggerConversion
+import eu.unicredit.swagger.StringUtils._
 
 import treehugger.forest._
 import treehuggerDSL._
 
 import io.swagger.models.parameters._
 
-trait SharedServerClientCode extends StringUtils with SwaggerConversion {
+trait SharedServerClientCode extends SwaggerConversion {
   import java.io.File.separator
   import java.io.File.separatorChar
 

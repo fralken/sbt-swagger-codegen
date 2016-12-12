@@ -17,6 +17,7 @@ package eu.unicredit.swagger.generators
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
+import eu.unicredit.swagger.StringUtils._
 
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
@@ -76,7 +77,7 @@ class DefaultServerGenerator
         val methodCall =
           genMethodCall(controllerName, methodName, op._2.getParameters)
 
-        s"${trimTo(8, op._1)}            ${trimTo(50, url)}          ${trimTo(20, methodCall)}"
+        s"${padTo(8, op._1)}            ${padTo(50, url)}          ${padTo(20, methodCall)}"
       }).toSeq
     }
 

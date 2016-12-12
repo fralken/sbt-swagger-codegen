@@ -109,19 +109,21 @@ class DefaultClientGenerator
     val PARAMS: Tree =
       DEFINFER("params") withFlags (Flags.PRIVATE) withParams (PARAM(
         "pairs",
-        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass)))) := BLOCK {
-        (
-          IF(REF("pairs") DOT "nonEmpty")
+        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass)))) := BLOCK(
+        Seq(
+          VAL("parts") := (
+            REF("pairs")
+              DOT "collect" APPLY BLOCK(CASE(TUPLE(
+              ID("k"),
+              REF("Some") UNAPPLY (ID("v")))) ==> (REF("k") INFIX ("+", LIT(
+              "=")) INFIX ("+", REF("v"))))
+          ),
+          IF(REF("parts") DOT "nonEmpty")
             THEN (
-              REF("pairs")
-                DOT "collect" APPLY BLOCK(
-                CASE(TUPLE(ID("k"), REF("Some") UNAPPLY (ID("v")))) ==> (REF(
-                  "k") INFIX ("+", LIT("=")) INFIX ("+", REF("v"))))
-                DOT "mkString" APPLY (LIT("?"), LIT("&"), LIT(""))
+              REF("parts") DOT "mkString" APPLY (LIT("?"), LIT("&"), LIT(""))
             )
             ELSE LIT("")
-        )
-      }
+        ))
 
     val body = BLOCK {
       PARAMS +:

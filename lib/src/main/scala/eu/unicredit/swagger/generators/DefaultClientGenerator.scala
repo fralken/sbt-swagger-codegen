@@ -125,8 +125,21 @@ class DefaultClientGenerator
             ELSE LIT("")
         ))
 
+    val RENDER_HEADER_PARAMS: Tree =
+      DEFINFER("_render_header_params") withFlags (Flags.PRIVATE) withParams (PARAM(
+        "pairs",
+        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass)))) := BLOCK(
+        Seq(
+          REF("pairs")
+            DOT "collect" APPLY BLOCK(
+            CASE(TUPLE(ID("k"), REF("Some") UNAPPLY (ID("v")))) ==>
+              (REF("k") INFIX ("->", REF("v") DOT "toString")))
+        ))
+
     val body = BLOCK {
-      completePaths.map(composeClient).flatten :+ RENDER_URL_PARAMS
+      completePaths
+        .map(composeClient)
+        .flatten :+ RENDER_URL_PARAMS :+ RENDER_HEADER_PARAMS
     }
 
     Seq(
@@ -157,12 +170,25 @@ class DefaultClientGenerator
           else REF(name))
       }
 
+    val headerParams: Seq[Tree] =
+      params collect {
+        case param: HeaderParameter =>
+          val name = param.getName
+          LIT(name) INFIX ("->",
+          if (param.getRequired) REF("Some") APPLY REF(name)
+          else REF(name))
+      }
+
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK(
-        REF("WS") DOT "url" APPLY
-          (INTERP(
-            "s",
-            LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url)))) INFIX ("+", THIS DOT "_render_url_params" APPLY (urlParams: _*))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
+        REF("WS") DOT "url" APPLY (INTERP(
+          "s",
+          LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url))))
+          INFIX ("+", THIS DOT "_render_url_params" APPLY (urlParams: _*)))
+          DOT "withHeaders" APPLY SEQARG(
+          THIS DOT "_render_header_params" APPLY (headerParams: _*)
+        )
+          DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
           LAMBDA(PARAM("resp")) ==> BLOCK {
             Seq(
               REF("assert") APPLY INFIX_CHAIN(

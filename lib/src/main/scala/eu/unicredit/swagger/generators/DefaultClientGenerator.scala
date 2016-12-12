@@ -106,8 +106,8 @@ class DefaultClientGenerator
     val params1 = "@Inject() (WS: WSClient)"
     val params2 = (CLASSDEF("") withParams PARAM("baseUrl", StringClass)).empty
 
-    val PARAMS: Tree =
-      DEFINFER("params") withFlags (Flags.PRIVATE) withParams (PARAM(
+    val RENDER_URL_PARAMS: Tree =
+      DEFINFER("_render_url_params") withFlags (Flags.PRIVATE) withParams (PARAM(
         "pairs",
         TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass)))) := BLOCK(
         Seq(
@@ -126,8 +126,7 @@ class DefaultClientGenerator
         ))
 
     val body = BLOCK {
-      PARAMS +:
-        completePaths.map(composeClient).flatten
+      completePaths.map(composeClient).flatten :+ RENDER_URL_PARAMS
     }
 
     Seq(
@@ -163,7 +162,7 @@ class DefaultClientGenerator
         REF("WS") DOT "url" APPLY
           (INTERP(
             "s",
-            LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url)))) INFIX ("+", THIS DOT "params" APPLY (urlParams: _*))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
+            LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url)))) INFIX ("+", THIS DOT "_render_url_params" APPLY (urlParams: _*))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
           LAMBDA(PARAM("resp")) ==> BLOCK {
             Seq(
               REF("assert") APPLY INFIX_CHAIN(

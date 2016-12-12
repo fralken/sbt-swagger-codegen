@@ -44,39 +44,28 @@ trait SharedServerClientCode extends SwaggerConversion {
     s"$className.$methodName" + p.mkString("(", ", ", ")")
   }
 
-  def getMethodParamas(params: Seq[Parameter]): Map[String, ValDef] = {
+  def getMethodParamas(params: Seq[Parameter]): Map[String, ValDef] =
     params
       .filter {
         case path: PathParameter => true
         case query: QueryParameter => true
         case header: HeaderParameter => true
         case body: BodyParameter => false
-        case _ =>
+        case x =>
           println(
             s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD");
           false
       }
-      .sortWith((p1, p2) => //the order must be verified...
-        p1 match {
-          case _: PathParameter =>
-            p2 match {
-              case _: PathParameter => true
-              case _: QueryParameter => true
-              case _ => true
-            }
-          case _: QueryParameter =>
-            p2 match {
-              case _: PathParameter => false
-              case _: QueryParameter => true
-              case _ => true
-            }
-          case _ => true
-      })
+      .sortBy { //the order must be verified...
+        case _: HeaderParameter => 1
+        case _: PathParameter => 2
+        case _: QueryParameter => 3
+        // other subtypes have been removed already
+      }
       .map(p => {
         (p.getName, PARAM(p.getName, paramType(p)): ValDef)
       })
       .toMap
-  }
 
   def respType[T](f: String => T): Seq[(String, T)] =
     Seq(

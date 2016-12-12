@@ -20,6 +20,7 @@ import eu.unicredit.swagger.StringUtils._
 import treehugger.forest._
 import treehuggerDSL._
 
+import io.swagger.models._
 import io.swagger.models.parameters._
 
 trait SharedServerClientCode extends SwaggerConversion {
@@ -67,17 +68,24 @@ trait SharedServerClientCode extends SwaggerConversion {
       })
       .toMap
 
-  def respType[T](f: String => T): Seq[(String, T)] =
-    Seq(
-      "Ok" -> f("200"),
-      "Created" -> f("201"),
-      "Accepted" -> f("202"),
-      "NonAuthoritativeInformation" -> f("203"),
-      "NoContent" -> f("204"),
-      "ResetContent" -> f("205"),
-      "PartialContent" -> f("206"),
-      "MultiStatus" -> f("207"),
-      "Ok" -> f("default")
-    )
+  def getOkRespType(op: Operation): Option[(String, Option[Type])] =
+    respTypeMap.flatMap {
+      case (k, v) =>
+        Option(op.getResponses get k) map { response =>
+          v -> Option(response.getSchema).map(noOptPropType)
+        }
+    }.headOption
 
+  private val respTypeMap: Seq[(String, String)] =
+    Seq(
+      "200" -> "Ok",
+      "201" -> "Created",
+      "202" -> "Accepted",
+      "203" -> "NonAuthoritativeInformation",
+      "204" -> "NoContent",
+      "205" -> "ResetContent",
+      "206" -> "PartialContent",
+      "207" -> "MultiStatus",
+      "default" -> "Ok"
+    )
 }

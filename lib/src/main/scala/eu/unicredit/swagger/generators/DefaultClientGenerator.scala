@@ -57,19 +57,14 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       } yield {
         val (httpVerb, swaggerOp) = op
 
-        val okRespType =
-          respType(swaggerOp.getResponses.get)
-            .find(x => x._2 ne null)
-            .map(x =>
-              x._1 ->
-                Option(x._2.getSchema).map(y => noOptPropType(y)))
-
         val methodName =
           if (op._2.getOperationId != null) op._2.getOperationId
           else throw new Exception("Please provide an operationId in: " + p)
 
-        if (okRespType.isEmpty)
-          throw new Exception(s"cannot determine Ok result type for $methodName")
+        val okRespType: (String, Option[Type]) =
+          getOkRespType(swaggerOp) getOrElse {
+            throw new Exception(s"cannot determine Ok result type for $methodName")
+          }
 
         val opType =
           op._1.toLowerCase
@@ -78,7 +73,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           doUrl(basePath, p)
 
         val methodCall =
-          genClientMethod(methodName, url, opType, op._2.getParameters, okRespType.get)
+          genClientMethod(methodName, url, opType, op._2.getParameters, okRespType)
 
         methodCall
       }

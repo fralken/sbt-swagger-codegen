@@ -2,28 +2,28 @@
 
 ## Overview
 
-Like official [swagger-codegen](https://github.com/swagger-api/swagger-codegen) this project aims to generate Scala libraries from [Swagger-Specification](https://github.com/swagger-api/swagger-spec) compliant API description.
-Moreover you can do it directly within an Sbt project.
+Like the official [swagger-codegen](https://github.com/swagger-api/swagger-codegen) this project aims to generate Scala source code from [Swagger Specification](https://github.com/swagger-api/swagger-spec) compliant API descriptions.
+Moreover, you can do it directly within an `sbt` project.
 
 ## Compatibility
 
-This codegenerator is designed specifically for Swagger Spec Version 2.0. Moreover it relies on [Play! Framework](http://www.playframework.com/) 2.4 for Json marshalling/unmarshalling, Server and Client side code.
+This code generator is designed specifically for Swagger Spec Version 2.0. Moreover, it relies on [Play! Framework](http://www.playframework.com/) 2.5 for Json marshalling/unmarshalling, server- and client-side code.
 
 ## Install
 
-Declare it inside your `project\plugins.sbt` like this:
+Enable it inside your `project\plugins.sbt` like this:
 
 `addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.6-SNAPSHOT")`
 
 ## Quick start
 
-For a *super fast* hands-on the project refer to the related example and check out [sbt-swagger-codegen-examples](https://github.com/unicredit/sbt-swagger-codegen-examples)
+For a *super fast* hands-on tutorial refer to the related examples and check out [sbt-swagger-codegen-examples](https://github.com/unicredit/sbt-swagger-codegen-examples).
 
 ## How it works
 
-By default, the plugin will assume you have put your `yaml` Swagger specification files under `src/main/swagger`.
+By default, the plugin will assume that you have put your `yaml` Swagger specification files under `src/main/swagger`.
 
-If so, you can then just run `swaggerCodeGen` and it'll produce your *model's* as case classes under `src/main/scala/swagger/codegen` and [Play Framework](www.playframework.com) [Formats](https://www.playframework.com/documentation/2.4.x/ScalaJsonCombinators#Format) for them (for json serialization) under `src/main/scala/swagger/codegen/json`.
+If so, then you can just run `swaggerCodeGen` and it will generate your *model's* as case classes under `src/main/scala/swagger/codegen` and [Play Framework](www.playframework.com) [Formats](https://www.playframework.com/documentation/2.4.x/ScalaJsonCombinators#Format) for them (for json serialization) under `src/main/scala/swagger/codegen/json`.
 
 ## Tasks
 
@@ -34,7 +34,7 @@ All available tasks from the plugin
 - `swaggerServerCodeGen` -> generates Play Framework code
 - `swaggerClientCodeGen` -> generates client code using `play-ws`
 
-Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerServerCodeGen```
+Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerServerCodeGen```.
 
 ## Keys (and defaults)
 
@@ -48,7 +48,7 @@ Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile 
 - `swaggerServerRoutesFile` -> "/src/main/resources/routes" (routes file to be generated)
 - `swaggerGenerateControllers` -> true (to be disabled if you want to provide fully costom controllers with all the boilerplate)
 
-Moreover you can extend this plugin by providing alternative implementations of the generators via:
+Moreover, you can extend this plugin by providing alternative implementations of the generators via:
 
 - `swaggerModelCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultModelGenerator() (the class used to generate the model classes)
 - `swaggerJsonCodeGenClass` -> new eu.unicredit.swagger.generators.DefaultJsonGenerator() (the class used to generate the json marshaller/unmarshaller)
@@ -64,13 +64,13 @@ Moreover you can extend this plugin by providing alternative implementations of 
 
 ### Limitations
 
-At the moment the project is developed to fullfill some internal projects needs, do not expect this to cover all the corner cases of the Swagger-Spec (i.e. some primitive types in body req or resp).
+At the moment the project is developed to fullfill some internal projects needs, so do not expect it to cover all the corner cases of the Swagger Spec (i.e. some primitive types in body req or resp).
 Model objects must have less than 22 parameters and could fail with circular referencies(due to the Play Json macro limitaion).
 
 ## The road ahead
 
-We are actively working with and on this project, trying to overcome any limitation arise and any Swagger-spec property we need.
-PR are really welcome and please open an Issue if you find something not working.
+We are actively working with and on this project, trying to overcome any arising limitations and support all Swagger-spec properties we need.
+PRs are really welcome and please open an Issue if you find that something is not working.
 
 ## Authors:
 
@@ -78,4 +78,4 @@ PR are really welcome and please open an Issue if you find something not working
 * Francesco Montecuccoli Degli Erri <https://github.com/fralken>
 * Marco Firrincieli: <https://github.com/mfirry>
 
-**** This is a work in progress and are not done with it! ****
+*** This is a work in progress and we are not done with it! ***

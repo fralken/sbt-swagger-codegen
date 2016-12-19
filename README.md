@@ -13,7 +13,7 @@ This code generator is designed specifically for Swagger Spec Version 2.0. Moreo
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.6-SNAPSHOT")`
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.7-SNAPSHOT")`
 
 ## Quick start
 

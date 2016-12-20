@@ -107,26 +107,39 @@ class DefaultClientGenerator
     val params1 = "@Inject() (WS: WSClient)"
     val params2 = (CLASSDEF("") withParams PARAM("baseUrl", StringClass)).empty
 
-    val PARAMS: Tree =
-      DEFINFER("params") withFlags (Flags.PRIVATE) withParams (PARAM(
+    val RENDER_URL_PARAMS: Tree =
+      DEFINFER("_render_url_params") withFlags Flags.PRIVATE withParams PARAM(
         "pairs",
-        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass)))) := BLOCK {
-        (
-          IF(REF("pairs") DOT "nonEmpty")
+        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))) := BLOCK(
+        Seq(
+          VAL("parts") := (
+            REF("pairs")
+              DOT "collect" APPLY BLOCK(CASE(
+              TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==> (REF("k") INFIX ("+", LIT(
+              "=")) INFIX ("+", REF("v"))))
+          ),
+          IF(REF("parts") DOT "nonEmpty")
             THEN (
-              REF("pairs")
-                DOT "collect" APPLY BLOCK(
-                CASE(TUPLE(ID("k"), REF("Some") UNAPPLY (ID("v")))) ==> (REF(
-                  "k") INFIX ("+", LIT("=")) INFIX ("+", REF("v"))))
-                DOT "mkString" APPLY (LIT("?"), LIT("&"), LIT(""))
+              REF("parts") DOT "mkString" APPLY (LIT("?"), LIT("&"), LIT(""))
             )
             ELSE LIT("")
-        )
-      }
+        ))
+
+    val RENDER_HEADER_PARAMS: Tree =
+      DEFINFER("_render_header_params") withFlags Flags.PRIVATE withParams PARAM(
+        "pairs",
+        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))) := BLOCK(
+        Seq(
+          REF("pairs")
+            DOT "collect" APPLY BLOCK(
+            CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==>
+              (REF("k") INFIX ("->", REF("v") DOT "toString")))
+        ))
 
     val body = BLOCK {
-      PARAMS +:
-        completePaths.map(composeClient).flatten
+      completePaths
+        .map(composeClient)
+        .flatten :+ RENDER_URL_PARAMS :+ RENDER_HEADER_PARAMS
     }
 
     Seq(
@@ -160,12 +173,34 @@ class DefaultClientGenerator
     val RuntimeExceptionClass =
       definitions.getClass("java.lang.RuntimeException")
 
+    val headerParams: Seq[Tree] =
+      params collect {
+        case param: HeaderParameter =>
+          val name = param.getName
+          LIT(name) INFIX ("->",
+          if (param.getRequired) REF("Some") APPLY REF(name)
+          else REF(name))
+      }
+
+    val baseUrl =
+      INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url))))
+    val baseUrlWithParams =
+      if (urlParams.isEmpty)
+        baseUrl
+      else
+        baseUrl INFIX ("+", THIS DOT "_render_url_params" APPLY (urlParams: _*))
+
+    val wsUrl = REF("WS") DOT "url" APPLY baseUrlWithParams
+    val wsUrlWithHeaders =
+      if (headerParams.isEmpty)
+        wsUrl
+      else
+        wsUrl DOT "withHeaders" APPLY SEQARG(
+          THIS DOT "_render_header_params" APPLY (headerParams: _*))
+
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK(
-        REF("WS") DOT "url" APPLY
-          (INTERP(
-            "s",
-            LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url)))) INFIX ("+", THIS DOT "params" APPLY (urlParams: _*))) DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
+        wsUrlWithHeaders DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
           LAMBDA(PARAM("resp")) ==> BLOCK {
             Seq(
               IF(

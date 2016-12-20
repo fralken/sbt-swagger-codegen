@@ -39,7 +39,7 @@ Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile 
 ## Keys (and defaults)
 
 - `swaggerSourcesDir` -> "/src/main/swagger" (path where to search for swagger files)
-- `swaggerCodegenPackage` -> "swagger.codegen" (package name of the generated sources)
+- `swaggerCodeGenPackage` -> "swagger.codegen" (package name of the generated sources)
 - `swaggerModelFileSplitting` -> "singleFile" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
 - `swaggerGeneratePlayJsonRW` -> true (if you want to generate json Format for your model case classes)
 - `swaggerCodeProvidedPackage` -> "eu.unicredit" (where you will provide business logic server method implementation)

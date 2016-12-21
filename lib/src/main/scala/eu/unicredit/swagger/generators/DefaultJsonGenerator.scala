@@ -49,15 +49,14 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
 
     (for {
       (name, model) <- models
-      (c, m) <- Seq(("Reads", "read"), ("Writes", "write"))
+      c <- Seq("Reads", "Writes")
     } yield {
-
-      val vd =
-        VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := {
-          c match {
-            case "Reads" =>
-              ANONDEF(s"$c[$name]") := LAMBDA(PARAM("json")) ==> REF(
-                "JsSuccess") APPLY (REF(name) APPLY (
+      VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+        c match {
+          case "Reads" =>
+            ANONDEF(s"$c[$name]") :=
+              LAMBDA(PARAM("json")) ==>
+                REF("JsSuccess") APPLY (REF(name) APPLY (
                 for ((pname, prop) <- getProperties(model)) yield {
                   val mtd = if (!prop.getRequired) "asOpt" else "as"
 
@@ -65,18 +64,18 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
                     prop)
                 }
               ))
-            case "Writes" =>
-              ANONDEF(s"$c[$name]") := LAMBDA(PARAM("o")) ==> REF("JsObject") APPLY (SeqClass APPLY (for ((pname,
-                                                                                                           prop) <- getProperties(
-                                                                                                            model))
-                yield
+          case "Writes" =>
+            ANONDEF(s"$c[$name]") :=
+              LAMBDA(PARAM("o")) ==>
+                REF("JsObject") APPLY (SeqClass APPLY (for ((pname, prop) <- getProperties(
+                                                              model))
+                yield {
                   LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(
-                    REF("o") DOT pname))) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF(
+                    REF("o") DOT pname))
+                }) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF(
                 "JsNull"))))
-          }
         }
-
-      vd
+      }
     }).toList
   }
 

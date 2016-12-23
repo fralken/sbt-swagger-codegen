@@ -129,9 +129,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         ))
 
     val body = BLOCK {
-      completePaths
-        .map(composeClient)
-        .flatten :+ RENDER_URL_PARAMS :+ RENDER_HEADER_PARAMS
+      completePaths.flatMap(composeClient) :+
+        RENDER_URL_PARAMS :+ RENDER_HEADER_PARAMS
     }
 
     Seq(

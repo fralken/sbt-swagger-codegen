@@ -32,7 +32,8 @@ trait SwaggerConversion {
       noOptPropType(p)
   }
 
-  private lazy val InstantClass = definitions.getClass("java.time.Instant")
+  private lazy val OffsetDateTimeClass =
+    definitions.getClass("java.time.OffsetDateTime")
 
   def noOptPropType(p: Property): Type = {
     p match {
@@ -59,7 +60,7 @@ trait SwaggerConversion {
       case r: RefProperty =>
         RootClass.newClass(r.getSimpleRef)
       case dt: DateTimeProperty =>
-        InstantClass
+        OffsetDateTimeClass
 
       case ba: ByteArrayProperty =>
         throw new Exception(s"ByteArrayProperty $p is not supported yet")

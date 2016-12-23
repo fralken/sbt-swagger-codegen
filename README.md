@@ -65,8 +65,8 @@ These keys determine where generated files will be put:
 These keys can be used to determine what kind of code should be generated:
 
 - `swaggerGenerateModel` -> true (to be disabled if you do not want model classes to be generated automatically when swagger source code changes)
-- `swaggerGenerateClient` -> true (to be disabled if you do not want client code to ge generated automatically when swagger source code changes)
-- `swaggerGenerateServer` -> true (to be disabled if you do not want client code to ge generated automatically when swagger source code changes)
+- `swaggerGenerateClient` -> false (enable this if you want client code to ge generated automatically when swagger source code changes)
+- `swaggerGenerateServer` -> false (enable this if you want client code to ge generated automatically when swagger source code changes)
 
 Moreover, you can extend this plugin by providing alternative implementations of the generators via:
 

@@ -13,7 +13,7 @@ This code generator is designed specifically for Swagger Spec Version 2.0. Moreo
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.7-SNAPSHOT")`
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.8")`
 
 Enable it in your `build.sbt` like this:
 
@@ -52,14 +52,14 @@ These keys influence properties of the generated code itself:
 - `swaggerSourcesDir` -> "/src/main/swagger" (path where to search for swagger files)
 - `swaggerCodeGenPackage` -> "swagger.codegen" (package name of the generated sources)
 - `swaggerModelFileSplitting` -> "singleFile" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
-- `swaggerCodeProvidedPackage` -> "eu.unicredit" (where you will provide business logic server method implementation)
+- `swaggerCodeProvidedPackage` -> "com.yourcompany" (where you will provide business logic server method implementation)
 
 These keys determine where generated files will be put:
 
-- `swaggerModelCodeTargetDir` -> "target/scala-2.12/src_managed/src/main/swagger/model" (path where to put generated model files)
+- `swaggerModelCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/model" (path where to put generated model files)
 - `swaggerGenerateJsonRW` -> true (if you want to generate json Format for your model case classes)
-- `swaggerClientCodeTargetDir` -> "target/scala-2.12/src_managed/src/main/swagger/client" (path where to put generated client code files)
-- `swaggerServerCodeTargetDir` -> "target/scala-2.12/src_managed/src/main/swagger/server" (path where to put generated server code files)
+- `swaggerClientCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/client" (path where to put generated client code files)
+- `swaggerServerCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/server" (path where to put generated server code files)
 - `swaggerServerRoutesFile` -> "src/main/resources/routes" (routes file to be generated)
 
 These keys can be used to determine what kind of code should be generated:

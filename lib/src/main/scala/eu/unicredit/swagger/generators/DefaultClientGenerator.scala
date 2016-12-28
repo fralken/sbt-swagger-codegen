@@ -24,9 +24,7 @@ import io.swagger.models._
 import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
 
-class DefaultClientGenerator
-    extends ClientGenerator
-    with SharedServerClientCode {
+class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode {
 
   def clientNameFromFileName(fn: String) = objectNameFromFileName(fn, "Client")
 
@@ -71,8 +69,7 @@ class DefaultClientGenerator
           else throw new Exception("Please provide an operationId in: " + p)
 
         if (okRespType.isEmpty)
-          throw new Exception(
-            s"cannot determine Ok result type for $methodName")
+          throw new Exception(s"cannot determine Ok result type for $methodName")
 
         val opType =
           op._1.toLowerCase
@@ -81,11 +78,7 @@ class DefaultClientGenerator
           doUrl(basePath, p)
 
         val methodCall =
-          genClientMethod(methodName,
-                          url,
-                          opType,
-                          op._2.getParameters,
-                          okRespType.get)
+          genClientMethod(methodName, url, opType, op._2.getParameters, okRespType.get)
 
         methodCall
       }
@@ -114,9 +107,9 @@ class DefaultClientGenerator
         Seq(
           VAL("parts") := (
             REF("pairs")
-              DOT "collect" APPLY BLOCK(CASE(
-              TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==> (REF("k") INFIX ("+", LIT(
-              "=")) INFIX ("+", REF("v"))))
+              DOT "collect" APPLY BLOCK(
+              CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==> (REF("k") INFIX ("+", LIT("=")) INFIX ("+", REF(
+                "v"))))
           ),
           IF(REF("parts") DOT "nonEmpty")
             THEN (
@@ -131,9 +124,8 @@ class DefaultClientGenerator
         TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))) := BLOCK(
         Seq(
           REF("pairs")
-            DOT "collect" APPLY BLOCK(
-            CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==>
-              (REF("k") INFIX ("->", REF("v") DOT "toString")))
+            DOT "collect" APPLY BLOCK(CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==>
+            (REF("k") INFIX ("->", REF("v") DOT "toString")))
         ))
 
     val body = BLOCK {
@@ -145,8 +137,8 @@ class DefaultClientGenerator
     Seq(
       SyntaxString(clientName,
                    treeToString(imports),
-                   treeToString(classDef) + " " + params1 + treeToString(
-                     params2).replace("class", "") + " " + treeToString(body)))
+                   treeToString(classDef) + " " + params1 + treeToString(params2)
+                     .replace("class", "") + " " + treeToString(body)))
   }
 
   def genClientMethod(methodName: String,
@@ -195,8 +187,7 @@ class DefaultClientGenerator
       if (headerParams.isEmpty)
         wsUrl
       else
-        wsUrl DOT "withHeaders" APPLY SEQARG(
-          THIS DOT "_render_header_params" APPLY (headerParams: _*))
+        wsUrl DOT "withHeaders" APPLY SEQARG(THIS DOT "_render_header_params" APPLY (headerParams: _*))
 
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK(

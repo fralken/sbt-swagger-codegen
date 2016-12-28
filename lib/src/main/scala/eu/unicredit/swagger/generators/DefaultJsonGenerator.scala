@@ -28,8 +28,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
   def generateJsonInit(packageName: String): String = {
     val initTree =
       BLOCK {
-        Seq(IMPORT("play.api.libs.json", "_"),
-            IMPORT("play.api.libs.functional.syntax", "_"))
+        Seq(IMPORT("play.api.libs.json", "_"), IMPORT("play.api.libs.functional.syntax", "_"))
       } inPackage packageName
 
     treeToString(initTree)
@@ -59,28 +58,22 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
                 REF("JsSuccess") APPLY (REF(name) APPLY (
                 for ((pname, prop) <- getProperties(model)) yield {
                   val mtd = if (!prop.getRequired) "asOpt" else "as"
-
-                  PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd APPLYTYPE noOptPropType(
-                    prop)
+                  PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd APPLYTYPE noOptPropType(prop)
                 }
               ))
           case "Writes" =>
             ANONDEF(s"$c[$name]") :=
               LAMBDA(PARAM("o")) ==>
-                REF("JsObject") APPLY (SeqClass APPLY (for ((pname, prop) <- getProperties(
-                                                              model))
+                REF("JsObject") APPLY (SeqClass APPLY (for ((pname, prop) <- getProperties(model))
                 yield {
-                  LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(
-                    REF("o") DOT pname))
-                }) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF(
-                "JsNull"))))
+                  LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))
+                }) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))
         }
       }
     }).toList
   }
 
-  def generateJson(destPackage: String,
-                   vds: List[ValDef]): Iterable[SyntaxString] = {
+  def generateJson(destPackage: String, vds: List[ValDef]): Iterable[SyntaxString] = {
     val pre = generateJsonInit(destPackage)
 
     val tree =

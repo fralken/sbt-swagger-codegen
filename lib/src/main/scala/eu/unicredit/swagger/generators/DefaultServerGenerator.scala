@@ -24,15 +24,12 @@ import io.swagger.models._
 import io.swagger.models.parameters._
 import scala.collection.JavaConversions._
 
-class DefaultServerGenerator
-    extends ServerGenerator
-    with SharedServerClientCode {
+class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode {
 
   def controllerNameFromFileName(fn: String) =
     objectNameFromFileName(fn, "Controller")
 
-  override def generateRoutes(fileName: String,
-                              packageName: String): Option[String] = {
+  override def generateRoutes(fileName: String, packageName: String): Option[String] = {
     val swagger = new SwaggerParser().read(fileName)
 
     val basePath = Option(swagger.getBasePath).getOrElse("/")
@@ -51,8 +48,7 @@ class DefaultServerGenerator
             Option(path.getPut) map ("PUT" -> _)).flatten.toMap
 
       val controllerName =
-        packageName + ".controller" + "." + controllerNameFromFileName(
-          fileName)
+        packageName + ".controller" + "." + controllerNameFromFileName(fileName)
 
       (for {
         op <- ops
@@ -64,9 +60,7 @@ class DefaultServerGenerator
         val methodName =
           op._2.getOperationId
 
-        def genMethodCall(className: String,
-                          methodName: String,
-                          params: Seq[Parameter]): String = {
+        def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
           val p = getMethodParamas(params).map {
             case (n, v) => s"$n: ${treeToString(v.tpt)}"
           }
@@ -88,9 +82,7 @@ class DefaultServerGenerator
     else None
   }
 
-  def generateImports(packageName: String,
-                      codeProvidedPackage: String,
-                      controllerName: String): Seq[Tree] =
+  def generateImports(packageName: String, codeProvidedPackage: String, controllerName: String): Seq[Tree] =
     Seq(
       IMPORT(packageName, "_"),
       IMPORT(packageName + ".json", "_"),
@@ -100,9 +92,7 @@ class DefaultServerGenerator
       IMPORT(codeProvidedPackage, controllerName + "Impl")
     )
 
-  def generate(fileName: String,
-               packageName: String,
-               codeProvidedPackage: String): Iterable[SyntaxString] = {
+  def generate(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxString] = {
     val swagger = new SwaggerParser().read(fileName)
 
     val controllerPackageName =
@@ -119,10 +109,7 @@ class DefaultServerGenerator
       if (path == null) return Seq()
 
       val ops: Seq[Operation] =
-        Seq(Option(path.getDelete),
-            Option(path.getGet),
-            Option(path.getPost),
-            Option(path.getPut)).flatten
+        Seq(Option(path.getDelete), Option(path.getGet), Option(path.getPost), Option(path.getPut)).flatten
 
       for {
         op <- ops
@@ -148,8 +135,7 @@ class DefaultServerGenerator
           genControllerMethod(methodName, op.getParameters, okRespType.get)
 
         if (okRespType.isEmpty)
-          throw new Exception(
-            s"cannot determine Ok result type for $methodName")
+          throw new Exception(s"cannot determine Ok result type for $methodName")
 
         methodCall
       }
@@ -164,13 +150,10 @@ class DefaultServerGenerator
       OBJECTDEF(controllerName) withParents (controllerName + "Impl") := BLOCK(
         completePaths.map(composeController).flatten)
 
-    Seq(
-      SyntaxString(controllerName, treeToString(imports), treeToString(tree)))
+    Seq(SyntaxString(controllerName, treeToString(imports), treeToString(tree)))
   }
 
-  def genControllerMethod(methodName: String,
-                          params: Seq[Parameter],
-                          resType: (String, Option[Type])): Tree = {
+  def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
     val methodParams = getMethodParamas(params)
@@ -181,23 +164,20 @@ class DefaultServerGenerator
     val ANSWER =
       resType._2.map { typ =>
         REF(resType._1) APPLY (
-          REF("Json") DOT "toJson" APPLYTYPE typ APPLY (REF(
-            methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x =>
-            REF(x._1)))
+          REF("Json") DOT "toJson" APPLYTYPE typ APPLY (REF(methodName + "Impl") APPLY (methodParams ++ bodyParams)
+            .map(x => REF(x._1)))
         )
       }.getOrElse(
         BLOCK {
           Seq(
-            REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(
-              x => REF(x._1)),
+            REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)),
             REF(resType._1)
           )
         }
       )
 
     val ERROR =
-      REF("BadRequest") APPLY (REF("onError") APPLY (LIT(methodName), REF(
-        "err")))
+      REF("BadRequest") APPLY (REF("onError") APPLY (LIT(methodName), REF("err")))
 
     val BODY_WITH_EXCEPTION_HANDLE =
       TRY {
@@ -222,33 +202,31 @@ class DefaultServerGenerator
   }
 
   def getParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] = {
-    params.filter {
-      case body: BodyParameter => true
-      case _ => false
-    }.flatMap {
-      case bp: BodyParameter =>
-        val tree: ValDef = VAL(bp.getName) :=
-            REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp) APPLY (REF(
-              "request") DOT "body" DOT "asJson" DOT "get") DOT "get"
+    params
+      .filter {
+        case body: BodyParameter => true
+        case _ => false
+      }
+      .flatMap {
+        case bp: BodyParameter =>
+          val tree: ValDef = VAL(bp.getName) :=
+              REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp) APPLY (REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
 
-        Some(bp.getName -> tree)
-      case _ =>
-        None
-    }.toMap
+          Some(bp.getName -> tree)
+        case _ =>
+          None
+      }
+      .toMap
   }
 }
 
 class DefaultAsyncServerGenerator extends DefaultServerGenerator {
 
-  override def generateImports(packageName: String,
-                               codeProvidedPackage: String,
-                               controllerName: String): Seq[Tree] =
+  override def generateImports(packageName: String, codeProvidedPackage: String, controllerName: String): Seq[Tree] =
     super.generateImports(packageName, codeProvidedPackage, controllerName) :+
       IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
 
-  override def genControllerMethod(methodName: String,
-                                   params: Seq[Parameter],
-                                   resType: (String, Option[Type])): Tree = {
+  override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
     val methodParams = getMethodParamas(params)
@@ -257,8 +235,7 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
       REF("Action.async")
 
     val ANSWER =
-      REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x =>
-        REF(x._1)) DOT "map" APPLY (
+      REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)) DOT "map" APPLY (
         LAMBDA(PARAM("answer")) ==> resType._2.map { typ =>
           REF(resType._1) APPLY (
             REF("Json") DOT "toJson" APPLYTYPE typ APPLY REF("answer")
@@ -269,18 +246,17 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
       )
 
     val ERROR =
-      REF("onError") APPLY (LIT(methodName), REF("err")) DOT "map" APPLY (LAMBDA(
-        PARAM("errAnswer")) ==> REF("BadRequest") APPLY REF("errAnswer"))
+      REF("onError") APPLY (LIT(methodName), REF("err")) DOT "map" APPLY (LAMBDA(PARAM("errAnswer")) ==> REF(
+        "BadRequest") APPLY REF("errAnswer"))
 
     val BODY_WITH_EXCEPTION_HANDLE =
       BLOCK {
         (bodyParams.values: Seq[Tree]) :+
           ANSWER
-      } DOT "recoverWith" APPLY BLOCK(
-        CASE(REF("err") withType RootClass.newClass("Throwable")) ==> BLOCK {
-          REF("err") DOT "printStackTrace"
-          ERROR
-        })
+      } DOT "recoverWith" APPLY BLOCK(CASE(REF("err") withType RootClass.newClass("Throwable")) ==> BLOCK {
+        REF("err") DOT "printStackTrace"
+        ERROR
+      })
 
     val tree: Tree =
       DEFINFER(methodName) withParams methodParams.values := BLOCK {

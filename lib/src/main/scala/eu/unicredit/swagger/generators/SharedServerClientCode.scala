@@ -36,9 +36,7 @@ trait SharedServerClientCode extends SwaggerConversion {
       .capitalize + obj
   }
 
-  def genMethodCall(className: String,
-                    methodName: String,
-                    params: Seq[Parameter]): String = {
+  def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
     val p = getMethodParamas(params).map {
       case (n, v) => s"$n: ${treeToString(v.tpt)}"
     }
@@ -47,16 +45,17 @@ trait SharedServerClientCode extends SwaggerConversion {
   }
 
   def getMethodParamas(params: Seq[Parameter]): Map[String, ValDef] = {
-    params.filter {
-      case path: PathParameter => true
-      case query: QueryParameter => true
-      case header: HeaderParameter => true
-      case body: BodyParameter => false
-      case _ =>
-        println(
-          "unmanaged parameter please contact the developer to implement it XD");
-        false
-    }.sortWith((p1, p2) => //the order must be verified...
+    params
+      .filter {
+        case path: PathParameter => true
+        case query: QueryParameter => true
+        case header: HeaderParameter => true
+        case body: BodyParameter => false
+        case _ =>
+          println("unmanaged parameter please contact the developer to implement it XD");
+          false
+      }
+      .sortWith((p1, p2) => //the order must be verified...
         p1 match {
           case _: PathParameter =>
             p2 match {

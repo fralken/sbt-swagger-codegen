@@ -26,9 +26,7 @@ import scala.collection.JavaConversions._
 
 class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
 
-  def generateClass(name: String,
-                    props: Iterable[(String, Property)],
-                    comments: Option[String]): String = {
+  def generateClass(name: String, props: Iterable[(String, Property)], comments: Option[String]): String = {
     val GenClass = RootClass.newClass(name)
 
     val params: Iterable[ValDef] = for ((pname, prop) <- props)
@@ -64,8 +62,6 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
     } yield
       SyntaxString(name,
                    generateModelInit(destPackage),
-                   generateClass(name,
-                                 getProperties(model),
-                                 Option(model.getDescription)))
+                   generateClass(name, getProperties(model), Option(model.getDescription)))
   }
 }

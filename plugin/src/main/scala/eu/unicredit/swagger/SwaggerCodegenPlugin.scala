@@ -95,8 +95,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val swaggerRoutesCodeGen =
       taskKey[Seq[File]]("Generate swagger server routes")
 
-    val swaggerClientCodeGen = taskKey[Seq[File]](
-      "Generate swagger client class with WS calls to specific routes")
+    val swaggerClientCodeGen = taskKey[Seq[File]]("Generate swagger client class with WS calls to specific routes")
 
   }
 
@@ -188,7 +187,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           targetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile,
           clientGenerator = swaggerClientCodeGenClass.value
         )
-      })
+      }
+    )
   }
 
   def swaggerCleanImpl(modelTargetDir: File,
@@ -255,16 +255,18 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
         IO write (destDir / "Model.scala", code)
       case OneFilePerSource =>
-        models.map {
-          case (k, m) =>
-            k ->
-              (m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n") +
-                m.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n"))
-        }.foreach {
-          case (k, code) =>
-            val name = getFileName(k) + ".scala"
-            IO write (destDir / name, code)
-        }
+        models
+          .map {
+            case (k, m) =>
+              k ->
+                (m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n") +
+                  m.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n"))
+          }
+          .foreach {
+            case (k, code) =>
+              val name = getFileName(k) + ".scala"
+              IO write (destDir / name, code)
+          }
       case OneFilePerModel =>
         models.values.flatten.foreach { v =>
           val code =

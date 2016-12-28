@@ -51,8 +51,7 @@ trait SwaggerConversion {
       case i: BaseIntegerProperty =>
         IntClass
       case m: MapProperty =>
-        RootClass.newClass("Map") TYPE_OF (StringClass, noOptPropType(
-          m.getAdditionalProperties))
+        RootClass.newClass("Map") TYPE_OF (StringClass, noOptPropType(m.getAdditionalProperties))
       case a: ArrayProperty =>
         ListClass TYPE_OF noOptPropType(a.getItems)
       case d: DecimalProperty =>
@@ -81,8 +80,7 @@ trait SwaggerConversion {
         if (asp.getType == "array")
           ListClass TYPE_OF noOptPropType(asp.getItems)
         else
-          noOptPropType(
-            PropertyBuilder.build(asp.getType, asp.getFormat, null))
+          noOptPropType(PropertyBuilder.build(asp.getType, asp.getFormat, null))
       case bp: BodyParameter =>
         noOptPropType(new RefProperty(bp.getSchema.getReference))
       case rp: RefParameter =>

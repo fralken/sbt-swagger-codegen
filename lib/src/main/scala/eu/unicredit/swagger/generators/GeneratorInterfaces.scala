@@ -30,9 +30,7 @@ trait ServerGenerator extends Generator {
   def generateRoutes(fileName: String, destPackage: String): Option[String] =
     None
 
-  def generate(fileName: String,
-               destPackage: String,
-               codeProvidedPackage: String): Iterable[SyntaxString]
+  def generate(fileName: String, destPackage: String, codeProvidedPackage: String): Iterable[SyntaxString]
 }
 
 trait ClientGenerator extends Generator {

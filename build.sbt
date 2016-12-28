@@ -2,17 +2,13 @@ lazy val common = Seq(
     organization := "eu.unicredit",
     version := "0.0.8",
     crossScalaVersions := Seq("2.10.4"),
-    scalacOptions ++= Seq("-target:jvm-1.7",
-                          "-feature",
-                          "-deprecation",
-                          "-language:_"),
+    scalacOptions ++= Seq("-target:jvm-1.7", "-feature", "-deprecation", "-language:_"),
     resolvers += Resolver.sonatypeRepo("releases")
   ) ++ sonatypePublish
 
 lazy val lib = project
   .in(file("lib"))
   .settings(common)
-  .settings(reformatOnCompileSettings)
   .settings(
     name := """sbt-swagger-codegen-lib""",
     libraryDependencies ++= Seq(
@@ -24,7 +20,6 @@ lazy val lib = project
 lazy val plugin = project
   .in(file("plugin"))
   .settings(common)
-  .settings(reformatOnCompileSettings)
   .settings(
     name := """sbt-swagger-codegen""",
     sbtPlugin := true
@@ -33,7 +28,6 @@ lazy val plugin = project
 
 lazy val root = project
   .in(file("."))
-  .settings(reformatOnCompileSettings)
   .settings(
     publish := {}
   )
@@ -43,11 +37,10 @@ publishArtifact := false
 
 lazy val sonatypePublish = sonatypeSettings ++ Seq(
     publishMavenStyle := true,
-    pomIncludeRepository := { x =>
+    pomIncludeRepository := { _ =>
     false
   },
-    credentials += Credentials(
-      Path.userHome / ".ivy2" / "sonatype.credentials"),
+    credentials += Credentials(Path.userHome / ".ivy2" / "sonatype.credentials"),
     pomExtra := {
     <url>https://github.com/unicredit/sbt-swagger-codegen</url>
     <licenses>

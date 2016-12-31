@@ -52,7 +52,8 @@ trait SharedServerClientCode extends SwaggerConversion {
         case header: HeaderParameter => true
         case body: BodyParameter => false
         case _ =>
-          println("unmanaged parameter please contact the developer to implement it XD");
+          println(
+            s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD");
           false
       }
       .sortWith((p1, p2) => //the order must be verified...

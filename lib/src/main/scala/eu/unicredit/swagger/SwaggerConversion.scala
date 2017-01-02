@@ -60,10 +60,30 @@ trait SwaggerConversion {
         RootClass.newClass(r.getSimpleRef)
       case dt: DateTimeProperty =>
         InstantClass
+
+      case ba: ByteArrayProperty =>
+        throw new Exception(s"ByteArrayProperty $p is not supported yet")
+      case b: BinaryProperty =>
+        throw new Exception(s"BinaryProperty $p is not supported yet")
+      case d: DateProperty =>
+        throw new Exception(s"DateProperty $p is not supported yet")
+      // supported as a subclass of StringProperty
+      //case e: EmailProperty =>
+      //  throw new Exception(s"EmailProperty $p is not supported yet")
+      case f: FileProperty =>
+        throw new Exception(s"FileProperty $p is not supported yet")
+      case o: ObjectProperty =>
+        throw new Exception(s"ObjectProperty $p is not supported yet")
+      case p: PasswordProperty =>
+        throw new Exception(s"PasswordProperty $p is not supported yet")
+      case u: UUIDProperty =>
+        throw new Exception(s"UUIDProperty $p is not supported yet")
+
       case null =>
         throw new Exception("Trying to resolve null property")
-      case any =>
-        AnyClass
+      case x =>
+        // should not happen as all existing types have been checked before
+        throw new Exception(s"unexpected property type $x")
     }
   }
 

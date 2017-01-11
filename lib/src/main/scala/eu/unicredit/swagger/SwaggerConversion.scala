@@ -32,7 +32,11 @@ trait SwaggerConversion {
       noOptPropType(p)
   }
 
-  private lazy val InstantClass = definitions.getClass("java.time.Instant")
+  private lazy val OffsetDateTimeClass =
+    definitions.getClass("java.time.OffsetDateTime")
+
+  private lazy val LocalDateClass =
+    definitions.getClass("java.time.LocalDate")
 
   def noOptPropType(p: Property): Type = {
     p match {
@@ -58,15 +62,15 @@ trait SwaggerConversion {
         BigDecimalClass
       case r: RefProperty =>
         RootClass.newClass(r.getSimpleRef)
+      case dt: DateProperty =>
+        LocalDateClass
       case dt: DateTimeProperty =>
-        InstantClass
+        OffsetDateTimeClass
 
       case ba: ByteArrayProperty =>
         throw new Exception(s"ByteArrayProperty $p is not supported yet")
       case b: BinaryProperty =>
         throw new Exception(s"BinaryProperty $p is not supported yet")
-      case d: DateProperty =>
-        throw new Exception(s"DateProperty $p is not supported yet")
       // supported as a subclass of StringProperty
       //case e: EmailProperty =>
       //  throw new Exception(s"EmailProperty $p is not supported yet")

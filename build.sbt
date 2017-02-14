@@ -1,6 +1,6 @@
 lazy val common = Seq(
     organization := "eu.unicredit",
-    version := "0.0.8",
+    version := "0.0.9",
     crossScalaVersions := Seq("2.10.4"),
     scalacOptions ++= Seq("-target:jvm-1.7", "-feature", "-deprecation", "-language:_"),
     resolvers += Resolver.sonatypeRepo("releases")
@@ -64,6 +64,11 @@ lazy val sonatypePublish = sonatypeSettings ++ Seq(
         <id>fralken</id>
         <name>Francesco Montecuccoli Degli Erri</name>
         <url>https://github.com/fralken/</url>
+      </developer>
+      <developer>
+        <id>mfirry</id>
+        <name>Marco Firrincieli</name>
+        <url>https://github.com/mfirry/</url>
       </developer>
     </developers>
   }

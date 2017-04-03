@@ -28,7 +28,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
   def generateJsonInit(packageName: String): String = {
     val initTree =
       BLOCK {
-        Seq(IMPORT("play.api.libs.json", "_"), IMPORT("play.api.libs.functional.syntax", "_"))
+        Seq(IMPORT("play.api.libs.json", "_"))
       } inPackage packageName
 
     treeToString(initTree)

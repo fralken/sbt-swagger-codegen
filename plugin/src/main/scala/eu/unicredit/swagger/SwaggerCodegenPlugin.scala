@@ -223,65 +223,46 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         fName -> modelGenerator.generate(fPath, codegenPackage)
       }).toMap
 
-    val jsonFormats: List[SyntaxString] =
-      (for {
-        file <- sourcesDir.listFiles()
-        fName = file.getName
-        fPath = file.getAbsolutePath
-        if fName.endsWith(".json") || fName.endsWith(".yaml")
-      } yield {
-        jsonGenerator.generate(fPath, codegenPackage).toList
-      }).flatten.toList
-
     val destDir = packageDir(targetDir, codegenPackage)
-
-    def getFileName(s: String) =
-      new String(s.toCharArray.takeWhile(_ == '.'))
 
     import FileSplittingModes._
     FileSplittingModes(fileSplittingMode) match {
       case SingleFile =>
-        val code =
-          models.values.flatten
-            .flatMap(_.pre.split("\n"))
-            .toList
-            .distinct
-            .mkString("\n") +
-            models.values.flatten
-              .map(_.code)
-              .toList
-              .distinct
-              .mkString("\n\n", "\n\n", "\n")
+        val ss = SyntaxString("Model.scala",
+          models.values.flatten.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
+          models.values.flatten.map(_.impl).toList.distinct.mkString("\n"))
 
-        IO write (destDir / "Model.scala", code)
+        IO write (destDir / ss.name, ss.code)
       case OneFilePerSource =>
-        models
-          .map {
-            case (k, m) =>
-              k ->
-                (m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n") +
-                  m.map(_.code).toList.distinct.mkString("\n\n", "\n\n", "\n"))
-          }
-          .foreach {
-            case (k, code) =>
-              val name = getFileName(k) + ".scala"
-              IO write (destDir / name, code)
-          }
+        models.foreach { case (k, m) =>
+          val name = k.substring(0, k.indexOf(".")).capitalize
+          val ss = SyntaxString(name + ".scala",
+            m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
+            m.map(_.impl).toList.distinct.mkString("\n"))
+
+          IO write (destDir / ss.name, ss.code)
+        }
       case OneFilePerModel =>
-        models.values.flatten.foreach { v =>
-          val code =
-            v.pre + "\n\n" + v.code
-          val name = getFileName(v.name) + ".scala"
-          IO write (destDir / name, code)
+        models.values.flatten.foreach { ss =>
+          IO write (destDir / (ss.name + ".scala"), ss.code)
         }
     }
 
     if (generateJson) {
-      val jsonDir = packageDir(destDir, "json")
-      val code =
-        jsonFormats.flatMap(_.pre.split("\n")).distinct.mkString("\n") +
-          jsonFormats.map(_.code).mkString("\n\n", "\n\n", "\n")
-      IO write (jsonDir / "package.scala", code)
+      val jsonFormats =
+        (for {
+          file <- sourcesDir.listFiles()
+          fName = file.getName
+          fPath = file.getAbsolutePath
+          if fName.endsWith(".json") || fName.endsWith(".yaml")
+        } yield {
+          jsonGenerator.generate(fPath, codegenPackage).toList
+        }).flatten
+
+      jsonFormats.foreach { ss =>
+        val jsonDir = packageDir(destDir, ss.name)
+        IO write (jsonDir / "package.scala", ss.code)
+      }
     }
 
     (destDir ** -DirectoryFilter).get
@@ -295,7 +276,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     checkFileExistence(sourcesDir)
     IO delete targetDir
 
-    val controllers: List[SyntaxString] =
+    val controllers =
       (for {
         file <- sourcesDir.listFiles()
         fName = file.getName
@@ -303,13 +284,12 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
-      }).flatten.toList
+      }).flatten
 
     val destDir = packageDir(targetDir, codegenPackage + ".controller")
 
-    controllers.foreach {
-      case ss =>
-        IO write (destDir / (ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
+    controllers.foreach { ss =>
+      IO write (destDir / (ss.name + ".scala"), ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
@@ -318,11 +298,11 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   def swaggerRoutesCodeGenImpl(codegenPackage: String,
                                sourcesDir: File,
                                targetRoutesFile: File,
-                               serverGenerator: ServerGenerator) = {
+                               serverGenerator: ServerGenerator): Seq[File] = {
     checkFileExistence(sourcesDir)
     IO delete targetRoutesFile
 
-    val routes: String =
+    val routes =
       (for {
         file <- sourcesDir.listFiles()
         fName = file.getName
@@ -330,10 +310,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         serverGenerator.generateRoutes(fPath, codegenPackage)
-      }).flatten.mkString("\n")
+      }).flatten
 
-    val sr =
-      routes.split("\n").toList.distinct.mkString("\n", "\n\n", "\n")
+    val sr = routes.distinct.mkString("\n", "\n\n", "\n")
 
     IO write (targetRoutesFile, sr)
 
@@ -347,7 +326,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     checkFileExistence(sourcesDir)
     IO delete targetDir
 
-    val clients: List[SyntaxString] =
+    val clients =
       (for {
         file <- sourcesDir.listFiles()
         fName = file.getName
@@ -355,13 +334,12 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         clientGenerator.generate(fPath, codegenPackage)
-      }).flatten.toList
+      }).flatten
 
     val destDir = packageDir(targetDir, codegenPackage + ".client")
 
-    clients.foreach {
-      case ss =>
-        IO write (destDir / (ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
+    clients.foreach { ss =>
+      IO write (destDir / (ss.name + ".scala"), ss.code)
     }
 
     (destDir ** -DirectoryFilter).get

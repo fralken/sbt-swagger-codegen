@@ -14,7 +14,9 @@
  */
 package eu.unicredit.swagger.generators
 
-case class SyntaxString(name: String, pre: String, code: String)
+case class SyntaxString(name: String, pre: String, impl: String) {
+  val code = s"$pre\n\n$impl"
+}
 
 trait Generator {}
 
@@ -27,8 +29,7 @@ trait JsonGenerator extends Generator {
 }
 
 trait ServerGenerator extends Generator {
-  def generateRoutes(fileName: String, destPackage: String): Option[String] =
-    None
+  def generateRoutes(fileName: String, destPackage: String): Option[String] = None
 
   def generate(fileName: String, destPackage: String, codeProvidedPackage: String): Iterable[SyntaxString]
 }

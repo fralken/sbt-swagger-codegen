@@ -1,6 +1,6 @@
 lazy val common = Seq(
     organization := "eu.unicredit",
-    version := "0.0.9",
+    version := "0.0.10-SNAPSHOT",
     crossScalaVersions := Seq("2.10.4"),
     scalacOptions ++= Seq("-target:jvm-1.7", "-feature", "-deprecation", "-language:_"),
     resolvers += Resolver.sonatypeRepo("releases")

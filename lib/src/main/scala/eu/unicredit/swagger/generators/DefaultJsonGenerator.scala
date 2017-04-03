@@ -50,24 +50,41 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
       (name, model) <- models
       c <- Seq("Reads", "Writes")
     } yield {
-      VAL(s"$name$c", s"$c[$name]") withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+      val properties = getProperties(model)
+      val caseObject = properties.isEmpty
+      val typeName = if (caseObject) s"$name.type" else name
+      VAL(s"$name$c", s"$c[$typeName]") withFlags (Flags.IMPLICIT, Flags.LAZY) := {
         c match {
           case "Reads" =>
-            ANONDEF(s"$c[$name]") :=
+            ANONDEF(s"$c[$typeName]") :=
               LAMBDA(PARAM("json")) ==>
-                REF("JsSuccess") APPLY (REF(name) APPLY (
-                for ((pname, prop) <- getProperties(model)) yield {
-                  val mtd = if (!prop.getRequired) "asOpt" else "as"
-                  PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd APPLYTYPE noOptPropType(prop)
+                REF("JsSuccess") APPLY {
+                if (caseObject) {
+                  REF(name)
+                } else {
+                  REF(name) APPLY {
+                    for ((pname, prop) <- properties) yield {
+                      val mtd = if (!prop.getRequired) "asOpt" else "as"
+                      PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd APPLYTYPE noOptPropType(prop)
+                    }
+                  }
                 }
-              ))
+              }
           case "Writes" =>
-            ANONDEF(s"$c[$name]") :=
+            ANONDEF(s"$c[$typeName]") :=
               LAMBDA(PARAM("o")) ==>
-                REF("JsObject") APPLY (SeqClass APPLY (for ((pname, prop) <- getProperties(model))
-                yield {
-                  LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))
-                }) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull"))))
+                REF("JsObject") APPLY {
+                if (caseObject) {
+                  SeqClass APPLY Seq.empty
+                } else {
+                  SeqClass APPLY {
+                    for ((pname, prop) <- properties)
+                      yield {
+                        LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))
+                      }
+                  } DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull")))
+                }
+              }
         }
       }
     }).toList

@@ -22,7 +22,7 @@ import eu.unicredit.swagger.StringUtils._
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode {
 
@@ -35,7 +35,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     val basePath = Option(swagger.getBasePath).getOrElse("/")
 
     val completePaths =
-      swagger.getPaths.keySet().toSeq
+      swagger.getPaths.asScala.keySet.toSeq
 
     def composeRoutes(p: String): Seq[String] = {
       val path = swagger.getPath(p)
@@ -69,7 +69,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         }
 
         val methodCall =
-          genMethodCall(controllerName, methodName, op._2.getParameters)
+          genMethodCall(controllerName, methodName, op._2.getParameters.asScala)
 
         s"${padTo(8, op._1)}            ${padTo(50, url)}          ${padTo(20, methodCall)}"
       }).toSeq
@@ -102,7 +102,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       controllerNameFromFileName(fileName)
 
     val completePaths =
-      swagger.getPaths.keySet().toSeq
+      swagger.getPaths.asScala.keySet.toSeq
 
     def composeController(p: String): Seq[Tree] = {
       val path = swagger.getPath(p)
@@ -115,7 +115,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         op <- ops
       } yield {
 
-        try if (!op.getProduces.forall(_ == "application/json"))
+        try if (!op.getProduces.asScala.forall(_ == "application/json"))
           println("WARNING - only 'application/json' is supported")
         catch {
           case _: Throwable =>
@@ -130,7 +130,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
           }
 
         val methodCall =
-          genControllerMethod(methodName, op.getParameters, okRespType)
+          genControllerMethod(methodName, op.getParameters.asScala, okRespType)
 
         methodCall
       }

@@ -21,7 +21,7 @@ import io.swagger.models.properties.Property
 import treehuggerDSL._
 import io.swagger.parser.SwaggerParser
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
 
@@ -44,7 +44,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
   def generateJsonRW(fileName: String): List[ValDef] = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val models = swagger.getDefinitions
+    val models = swagger.getDefinitions.asScala
 
     (for {
       (name, model) <- models

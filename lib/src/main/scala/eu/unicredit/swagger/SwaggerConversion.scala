@@ -21,7 +21,7 @@ import treehuggerDSL._
 import io.swagger.models.properties._
 import io.swagger.models.parameters._
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 trait SwaggerConversion {
 
@@ -114,6 +114,6 @@ trait SwaggerConversion {
 
   def getProperties(model: Model): Iterable[(String, Property)] = {
     val props = model.getProperties
-    if (props == null) Iterable.empty else props
+    if (props == null) Iterable.empty else props.asScala
   }
 }

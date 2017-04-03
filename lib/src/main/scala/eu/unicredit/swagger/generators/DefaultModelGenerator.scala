@@ -22,7 +22,7 @@ import treehuggerDSL._
 
 import io.swagger.parser.SwaggerParser
 import io.swagger.models.properties._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
 
@@ -55,7 +55,7 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
   def generate(fileName: String, destPackage: String): Iterable[SyntaxString] = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val models = swagger.getDefinitions
+    val models = swagger.getDefinitions.asScala
 
     for {
       (name, model) <- models

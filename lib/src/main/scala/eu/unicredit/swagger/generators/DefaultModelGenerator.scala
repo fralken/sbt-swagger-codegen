@@ -38,8 +38,7 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
       else
         CLASSDEF(GenClass) withFlags Flags.CASE withParams params
 
-    val resTree =
-      comments.map(tree withComment _).getOrElse(tree)
+    val resTree = comments.map(tree withComment _).getOrElse(tree)
 
     treeToString(resTree)
   }
@@ -60,7 +59,7 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
     for {
       (name, model) <- models
     } yield
-      SyntaxString(name,
+      SyntaxString(name + ".scala",
                    generateModelInit(destPackage),
                    generateClass(name, getProperties(model), Option(model.getDescription)))
   }

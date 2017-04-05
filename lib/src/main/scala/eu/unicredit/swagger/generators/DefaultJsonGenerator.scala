@@ -17,9 +17,8 @@ package eu.unicredit.swagger.generators
 import eu.unicredit.swagger.SwaggerConversion
 import treehugger.forest._
 import definitions._
-import io.swagger.models.properties.Property
-import treehuggerDSL._
 import io.swagger.parser.SwaggerParser
+import treehuggerDSL._
 
 import scala.collection.JavaConverters._
 
@@ -35,8 +34,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
   }
 
   def generateJsonImplicits(vds: List[ValDef]): String = {
-    val tree =
-      PACKAGEOBJECTDEF("json") := BLOCK(vds)
+    val tree = PACKAGEOBJECTDEF("json") := BLOCK(vds)
 
     treeToString(tree)
   }
@@ -93,8 +91,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
   def generateJson(destPackage: String, vds: List[ValDef]): Iterable[SyntaxString] = {
     val pre = generateJsonInit(destPackage)
 
-    val tree =
-      PACKAGEOBJECTDEF("json") := BLOCK(vds)
+    val tree = PACKAGEOBJECTDEF("json") := BLOCK(vds)
 
     val code = treeToString(tree)
     Seq(SyntaxString("json", pre, code))

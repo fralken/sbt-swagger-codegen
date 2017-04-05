@@ -47,35 +47,26 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       if (path == null) return Seq()
 
       val ops: Seq[(String, Operation)] =
-        Seq(Option(path.getDelete) map ("DELETE" -> _),
-            Option(path.getGet) map ("GET" -> _),
-            Option(path.getPost) map ("POST" -> _),
-            Option(path.getPut) map ("PUT" -> _)).flatten
+        Seq(Option(path.getDelete) map ("delete" -> _),
+            Option(path.getGet) map ("get" -> _),
+            Option(path.getPost) map ("post" -> _),
+            Option(path.getPut) map ("put" -> _)).flatten
 
       for {
-        op <- ops
+        (verb, op) <- ops
       } yield {
-        val (httpVerb, swaggerOp) = op
-
         val methodName =
-          if (op._2.getOperationId != null) op._2.getOperationId
+          if (op.getOperationId != null) op.getOperationId
           else throw new Exception("Please provide an operationId in: " + p)
 
         val okRespType: (String, Option[Type]) =
-          getOkRespType(swaggerOp) getOrElse {
+          getOkRespType(op) getOrElse {
             throw new Exception(s"cannot determine Ok result type for $methodName")
           }
 
-        val opType =
-          op._1.toLowerCase
+        val url = doUrl(basePath, p)
 
-        val url =
-          doUrl(basePath, p)
-
-        val methodCall =
-          genClientMethod(methodName, url, opType, op._2.getParameters, okRespType)
-
-        methodCall
+        genClientMethod(methodName, url, verb, op.getParameters, okRespType)
       }
     }
 
@@ -129,7 +120,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     }
 
     Seq(
-      SyntaxString(clientName,
+      SyntaxString(clientName + ".scala",
                    treeToString(imports),
                    treeToString(classDef) + " " + params1 + treeToString(params2)
                      .replace("class", "") + " " + treeToString(body)))

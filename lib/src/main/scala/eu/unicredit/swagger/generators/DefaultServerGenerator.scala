@@ -121,18 +121,14 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
           case _: Throwable =>
         }
 
-        val methodName =
-          op.getOperationId
+        val methodName = op.getOperationId
 
         val okRespType: (String, Option[Type]) =
           getOkRespType(op) getOrElse {
             throw new Exception(s"cannot determine Ok result type for $methodName")
           }
 
-        val methodCall =
-          genControllerMethod(methodName, op.getParameters.asScala, okRespType)
-
-        methodCall
+        genControllerMethod(methodName, op.getParameters.asScala, okRespType)
       }
     }
 
@@ -145,7 +141,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       OBJECTDEF(controllerName) withParents (controllerName + "Impl") := BLOCK(
         completePaths.map(composeController).flatten)
 
-    Seq(SyntaxString(controllerName, treeToString(imports), treeToString(tree)))
+    Seq(SyntaxString(controllerName + ".scala", treeToString(imports), treeToString(tree)))
   }
 
   def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {

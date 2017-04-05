@@ -244,7 +244,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         }
       case OneFilePerModel =>
         models.values.flatten.foreach { ss =>
-          IO write (destDir / (ss.name + ".scala"), ss.code)
+          IO write (destDir / ss.name, ss.code)
         }
     }
 
@@ -289,7 +289,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val destDir = packageDir(targetDir, codegenPackage + ".controller")
 
     controllers.foreach { ss =>
-      IO write (destDir / (ss.name + ".scala"), ss.code)
+      IO write (destDir / ss.name, ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
@@ -339,7 +339,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val destDir = packageDir(targetDir, codegenPackage + ".client")
 
     clients.foreach { ss =>
-      IO write (destDir / (ss.name + ".scala"), ss.code)
+      IO write (destDir / ss.name, ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
@@ -348,11 +348,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   def checkFileExistence(sDir: File) = {
     if (!sDir.exists() || !sDir.isDirectory)
       throw new Exception(s"Provided swagger source dir $sDir doesn't exists")
-    else if (sDir
-               .listFiles()
-               .count(x =>
-                 x.getName.endsWith(".json") || x.getName
-                   .endsWith(".yaml")) < 1)
+    else if (sDir.listFiles().count(x => x.getName.endsWith(".json") || x.getName.endsWith(".yaml")) < 1)
       throw new Exception(s"There are no files in swagger directory $sDir")
   }
 

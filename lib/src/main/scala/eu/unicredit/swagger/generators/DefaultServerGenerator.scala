@@ -29,6 +29,9 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
   def controllerNameFromFileName(fn: String) =
     objectNameFromFileName(fn, "Controller")
 
+  def serviceNameFromFileName(fn: String) =
+    objectNameFromFileName(fn, "Service")
+
   override def generateRoutes(fileName: String, packageName: String): Option[String] = {
     val swagger = new SwaggerParser().read(fileName)
 
@@ -82,14 +85,15 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     else None
   }
 
-  def generateImports(packageName: String, codeProvidedPackage: String, controllerName: String): Seq[Tree] =
+  def generateImports(packageName: String, codeProvidedPackage: String, serviceName: String): Seq[Tree] =
     Seq(
       IMPORT(packageName, "_"),
       IMPORT(packageName + ".json", "_"),
       IMPORT("play.api.mvc.Results", "_"),
       IMPORT("play.api.mvc", "_"),
       IMPORT("play.api.libs.json", "_"),
-      IMPORT(codeProvidedPackage, controllerName + "Impl")
+      IMPORT("javax.inject", "_"),
+      IMPORT(codeProvidedPackage, serviceName)
     )
 
   def generate(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxString] = {
@@ -100,6 +104,9 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     val controllerName =
       controllerNameFromFileName(fileName)
+
+    val serviceName =
+      serviceNameFromFileName(fileName)
 
     val completePaths =
       swagger.getPaths.asScala.keySet.toSeq
@@ -134,12 +141,11 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     val imports =
       BLOCK {
-        generateImports(packageName, codeProvidedPackage, controllerName)
+        generateImports(packageName, codeProvidedPackage, serviceName)
       } inPackage controllerPackageName
 
-    val tree =
-      OBJECTDEF(controllerName) withParents (controllerName + "Impl") := BLOCK(
-        completePaths.map(composeController).flatten)
+    val tree = CLASSDEF(controllerName + " @Inject()") withParams PARAM("service", TYPE_REF(serviceName)) :=
+      BLOCK(completePaths.map(composeController).flatten)
 
     Seq(SyntaxString(controllerName + ".scala", treeToString(imports), treeToString(tree)))
   }
@@ -155,20 +161,21 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     val ANSWER =
       resType._2.map { typ =>
         REF(resType._1) APPLY (
-          REF("Json") DOT "toJson" APPLYTYPE typ APPLY (REF(methodName + "Impl") APPLY (methodParams ++ bodyParams)
-            .map(x => REF(x._1)))
+          REF("Json") DOT "toJson" APPLYTYPE typ APPLY (
+            REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1))
+          )
         )
       }.getOrElse(
         BLOCK {
           Seq(
-            REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)),
+            REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1)),
             REF(resType._1)
           )
         }
       )
 
     val ERROR =
-      REF("BadRequest") APPLY (REF("onError") APPLY (LIT(methodName), REF("err")))
+      REF("BadRequest") APPLY (REF("service") DOT "onError" APPLY (LIT(methodName), REF("err")))
 
     val BODY_WITH_EXCEPTION_HANDLE =
       TRY {
@@ -213,8 +220,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
 class DefaultAsyncServerGenerator extends DefaultServerGenerator {
 
-  override def generateImports(packageName: String, codeProvidedPackage: String, controllerName: String): Seq[Tree] =
-    super.generateImports(packageName, codeProvidedPackage, controllerName) :+
+  override def generateImports(packageName: String, codeProvidedPackage: String, serviceName: String): Seq[Tree] =
+    super.generateImports(packageName, codeProvidedPackage, serviceName) :+
       IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
 
   override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
@@ -226,7 +233,7 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
       REF("Action.async")
 
     val ANSWER =
-      REF(methodName + "Impl") APPLY (methodParams ++ bodyParams).map(x => REF(x._1)) DOT "map" APPLY (
+      REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1)) DOT "map" APPLY (
         LAMBDA(PARAM("answer")) ==> resType._2.map { typ =>
           REF(resType._1) APPLY (
             REF("Json") DOT "toJson" APPLYTYPE typ APPLY REF("answer")
@@ -237,7 +244,7 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
       )
 
     val ERROR =
-      REF("onError") APPLY (LIT(methodName), REF("err")) DOT "map" APPLY (LAMBDA(PARAM("errAnswer")) ==> REF(
+      REF("service") DOT "onError" APPLY (LIT(methodName), REF("err")) DOT "map" APPLY (LAMBDA(PARAM("errAnswer")) ==> REF(
         "BadRequest") APPLY REF("errAnswer"))
 
     val BODY_WITH_EXCEPTION_HANDLE =

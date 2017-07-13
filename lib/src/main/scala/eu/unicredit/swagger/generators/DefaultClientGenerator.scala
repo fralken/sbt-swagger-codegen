@@ -82,10 +82,6 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         )
       } inPackage clientPackageName
 
-    val classDef = CLASSDEF(clientName).empty
-    val params1 = "@Inject() (WS: WSClient)"
-    val params2 = (CLASSDEF("") withParams PARAM("baseUrl", StringClass)).empty
-
     val RENDER_URL_PARAMS: Tree =
       DEFINFER("_render_url_params") withFlags Flags.PRIVATE withParams PARAM(
         "pairs",
@@ -114,16 +110,11 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
             (REF("k") INFIX ("->", REF("v") DOT "toString")))
         ))
 
-    val body = BLOCK {
-      completePaths.flatMap(composeClient) :+
-        RENDER_URL_PARAMS :+ RENDER_HEADER_PARAMS
+    val tree = CLASSDEF(clientName + " @Inject() (WS: WSClient)") withParams PARAM("baseUrl", StringClass) := BLOCK {
+      completePaths.flatMap(composeClient) :+ RENDER_URL_PARAMS :+ RENDER_HEADER_PARAMS
     }
 
-    Seq(
-      SyntaxString(clientName + ".scala",
-                   treeToString(imports),
-                   treeToString(classDef) + " " + params1 + treeToString(params2)
-                     .replace("class", "") + " " + treeToString(body)))
+    Seq(SyntaxString(clientName + ".scala", treeToString(imports), treeToString(tree)))
   }
 
   def genClientMethod(methodName: String,

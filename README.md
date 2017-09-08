@@ -13,7 +13,7 @@ This code generator is designed specifically for Swagger Spec Version 2.0. Moreo
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.9")`
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.10")`
 
 Enable it in your `build.sbt` like this:
 
@@ -45,7 +45,7 @@ The `swaggerModelCodeGen`, `swaggerServerCodeGen` and `swaggerClientCodeGen` wil
 
 Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerRoutesCodeGen```)
 
-## Keys (and defaults)
+## Keys (and defaults)
 
 These keys influence properties of the generated code itself:
 
@@ -85,7 +85,6 @@ Moreover, you can extend this plugin by providing alternative implementations of
 ### Limitations
 
 At the moment the project is developed to fullfill some internal projects needs, so do not expect it to cover all the corner cases of the Swagger Spec (i.e. some primitive types in body req or resp).
-Model objects must have less than 22 parameters and could fail with circular referencies(due to the Play Json macro limitaion).
 
 ## The road ahead
 

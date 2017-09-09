@@ -149,7 +149,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           modelTargetDir = swaggerModelCodeTargetDir.value.getAbsoluteFile,
           serverTargetDir = swaggerServerCodeTargetDir.value.getAbsoluteFile,
           routesFile = swaggerServerRoutesFile.value.getAbsoluteFile,
-          clientTargetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile
+          clientTargetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile,
+          deleteRoutes = swaggerGenerateServer.value
         )
       },
       swaggerModelCodeGen := {
@@ -195,8 +196,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                        serverTargetDir: File,
                        routesFile: File,
                        clientTargetDir: File,
-                       codegenPackage: String) = {
-    routesFile.delete()
+                       codegenPackage: String,
+                       deleteRoutes: Boolean) = {
+    if (deleteRoutes) routesFile.delete()
     IO delete packageDir(modelTargetDir, codegenPackage)
     IO delete packageDir(serverTargetDir, codegenPackage)
     IO delete packageDir(clientTargetDir, codegenPackage)

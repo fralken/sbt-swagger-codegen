@@ -2,7 +2,7 @@
 
 ## Overview
 
-Like the official [swagger-codegen](https://github.com/swagger-api/swagger-codegen) this project aims to generate Scala source code from [Swagger Specification](https://github.com/swagger-api/swagger-spec) compliant API descriptions.
+Like the official [swagger-codegen](https://github.com/swagger-api/swagger-codegen) this project aims to generate Scala source code from [Swagger 2.0 Specification](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md) compliant API descriptions.
 Moreover, you can do it directly within an `sbt` project.
 
 ## Compatibility

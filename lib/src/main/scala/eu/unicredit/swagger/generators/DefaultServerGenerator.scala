@@ -65,7 +65,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
           else throw new Exception("Please provide an operationId in: " + p)
 
         def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
-          val p = getMethodParamas(params).map {
+          val p = getMethodParams(params).map {
             case (n, v) => s"$n: ${treeToString(v.tpt)}"
           }
           // since it is a route definition, this is not Scala code, so we generate it manually
@@ -156,7 +156,9 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
   def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
-    val methodParams = getMethodParamas(params)
+    if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
+
+    val methodParams = getMethodParams(params)
 
     val ACTION =
       REF("Action")
@@ -202,7 +204,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     tree
   }
 
-  def getParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] = {
+  def getParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] =
     params
       .filter {
         case body: BodyParameter => true
@@ -218,7 +220,6 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
           None
       }
       .toMap
-  }
 }
 
 class DefaultAsyncServerGenerator extends DefaultServerGenerator {
@@ -230,7 +231,9 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
   override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
-    val methodParams = getMethodParamas(params)
+    if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
+
+    val methodParams = getMethodParams(params)
 
     val ACTION =
       REF("Action.async")

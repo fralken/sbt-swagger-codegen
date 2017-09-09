@@ -122,11 +122,13 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
                       opType: String,
                       params: Seq[Parameter],
                       respType: (String, Option[Type])): Tree = {
-    val bodyParams = getPlainParamsFromBody(params)
+    val bodyParams = getBodyParams(params)
 
-    val fullBodyParams = getParamsToBody(params)
+    if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
-    val methodParams = getMethodParamas(params)
+    val bodyParamsToBody = getParamsToBody(params)
+
+    val methodParams = getMethodParams(params)
 
     //probably to be fixed with a custom ordering
     val urlParams: Seq[Tree] =
@@ -166,8 +168,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         wsUrl DOT "withHeaders" APPLY SEQARG(THIS DOT "_render_header_params" APPLY (headerParams: _*))
 
     val tree: Tree =
-      DEFINFER(methodName) withParams (methodParams.values ++ bodyParams.values) := BLOCK(
-        wsUrlWithHeaders DOT opType APPLY fullBodyParams.values DOT "map" APPLY (
+      DEFINFER(methodName) withParams (methodParams.values ++ bodyParams) := BLOCK(
+        wsUrlWithHeaders DOT opType APPLY bodyParamsToBody.values DOT "map" APPLY (
           LAMBDA(PARAM("resp")) ==> BLOCK {
             Seq(
               IF(
@@ -206,10 +208,10 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         bp.getName -> tree
     }.toMap
 
-  def getPlainParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] =
+  def getBodyParams(params: Seq[Parameter]): Seq[ValDef] =
     params.collect {
       case bp: BodyParameter =>
         val tree: ValDef = PARAM(bp.getName, noOptParamType(bp))
-        bp.getName -> tree
-    }.toMap
+        tree
+    }
 }

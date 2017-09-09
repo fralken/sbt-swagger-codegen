@@ -54,14 +54,15 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         packageName + ".controller" + "." + controllerNameFromFileName(fileName)
 
       (for {
-        op <- ops
+        (verb, op) <- ops
       } yield {
 
         val url =
           doUrl(basePath, p)
 
         val methodName =
-          op._2.getOperationId
+          if (op.getOperationId != null) op.getOperationId
+          else throw new Exception("Please provide an operationId in: " + p)
 
         def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
           val p = getMethodParamas(params).map {
@@ -72,9 +73,9 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         }
 
         val methodCall =
-          genMethodCall(controllerName, methodName, op._2.getParameters.asScala)
+          genMethodCall(controllerName, methodName, op.getParameters.asScala)
 
-        s"${padTo(8, op._1)}            ${padTo(50, url)}          ${padTo(20, methodCall)}"
+        s"${padTo(8, verb)}            ${padTo(50, url)}          ${padTo(20, methodCall)}"
       }).toSeq
     }
 
@@ -128,7 +129,9 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
           case _: Throwable =>
         }
 
-        val methodName = op.getOperationId
+        val methodName =
+          if (op.getOperationId != null) op.getOperationId
+          else throw new Exception("Please provide an operationId in: " + p)
 
         val okRespType: (String, Option[Type]) =
           getOkRespType(op) getOrElse {

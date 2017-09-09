@@ -12,7 +12,7 @@ lazy val lib = project
   .settings(
     name := """sbt-swagger-codegen-lib""",
     libraryDependencies ++= Seq(
-      "com.eed3si9n" %% "treehugger" % "0.4.1",
+      "com.eed3si9n" %% "treehugger" % "0.4.3",
       "io.swagger" % "swagger-parser" % "1.0.27"
     )
   )

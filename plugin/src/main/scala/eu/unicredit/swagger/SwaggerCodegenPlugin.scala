@@ -237,7 +237,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         IO write (destDir / ss.name, ss.code)
       case OneFilePerSource =>
         models.foreach { case (k, m) =>
-          val name = k.substring(0, k.indexOf(".")).capitalize
+          val name = k.split(".yaml$|.json$").head.capitalize
           val ss = SyntaxString(name + ".scala",
             m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
             m.map(_.impl).toList.distinct.mkString("\n"))

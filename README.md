@@ -27,7 +27,7 @@ For a *super fast* hands-on tutorial refer to the related examples and check out
 
 By default, the plugin will assume that you have put your `yaml` Swagger specification files under `src/main/swagger`.
 
-If so, then you can just run `swaggerCodeGen` and it will generate your *model's* as case classes under `src/main/scala/swagger/codegen` and [Play Framework](www.playframework.com) [Formats](https://www.playframework.com/documentation/2.4.x/ScalaJsonCombinators#Format) for them (for json serialization) under `src/main/scala/swagger/codegen/json`.
+If so, then you can just run `swaggerModelCodeGen` task and it will generate your *models* as case classes and [Play Framework](www.playframework.com) [Formats](https://www.playframework.com/documentation/2.5.x/ScalaJsonCombinators#Format) for them (for json serialization).
 
 ## Tasks
 
@@ -57,7 +57,6 @@ These keys influence properties of the generated code itself:
 These keys determine where generated files will be put:
 
 - `swaggerModelCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/model" (path where to put generated model files)
-- `swaggerGenerateJsonRW` -> true (if you want to generate json Format for your model case classes)
 - `swaggerClientCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/client" (path where to put generated client code files)
 - `swaggerServerCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/server" (path where to put generated server code files)
 - `swaggerServerRoutesFile` -> "src/main/resources/routes" (routes file to be generated)
@@ -65,6 +64,7 @@ These keys determine where generated files will be put:
 These keys can be used to determine what kind of code should be generated:
 
 - `swaggerGenerateModel` -> true (to be disabled if you do not want model classes to be generated automatically when swagger source code changes)
+- `swaggerGenerateJsonRW` -> true (if you want to generate json Format for your model case classes)
 - `swaggerGenerateClient` -> false (enable this if you want client code to ge generated automatically when swagger source code changes)
 - `swaggerGenerateServer` -> false (enable this if you want client code to ge generated automatically when swagger source code changes)
 
@@ -91,10 +91,14 @@ At the moment the project is developed to fullfill some internal projects needs,
 We are actively working with and on this project, trying to overcome any arising limitations and support all Swagger-spec properties we need.
 PRs are really welcome and please open an Issue if you find that something is not working.
 
-## Authors:
+## Authors
 
 * Andrea Peruffo: <https://github.com/andreaTP>
 * Francesco Montecuccoli Degli Erri <https://github.com/fralken>
 * Marco Firrincieli: <https://github.com/mfirry>
+
+### Acknowledgements
+
+Thanks to Daniel Wunsch ([@dwunsch](https://github.com/dwunsch)) for his valuable contributions.
 
 *** This is a work in progress and we are not done with it! ***

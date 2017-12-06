@@ -22,6 +22,7 @@ lazy val plugin = project
   .settings(common)
   .settings(
     name := """sbt-swagger-codegen""",
+    crossSbtVersions := Seq("0.13.16", "1.0.4"),
     sbtPlugin := true
   )
   .dependsOn(lib)
@@ -35,7 +36,7 @@ lazy val root = project
 
 publishArtifact := false
 
-lazy val sonatypePublish = sonatypeSettings ++ Seq(
+lazy val sonatypePublish = Seq(
     publishMavenStyle := true,
     pomIncludeRepository := { _ =>
     false

@@ -22,7 +22,7 @@ import eu.unicredit.swagger.StringUtils._
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode {
 
@@ -40,7 +40,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       clientNameFromFileName(fileName)
 
     val completePaths =
-      swagger.getPaths.keySet().toSeq
+      swagger.getPaths.keySet().asScala.toSeq
 
     def composeClient(p: String): Seq[Tree] = {
       val path = swagger.getPath(p)
@@ -66,7 +66,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
         val url = doUrl(basePath, p)
 
-        genClientMethod(methodName, url, verb, op.getParameters, okRespType)
+        genClientMethod(methodName, url, verb, op.getParameters.asScala, okRespType)
       }
     }
 

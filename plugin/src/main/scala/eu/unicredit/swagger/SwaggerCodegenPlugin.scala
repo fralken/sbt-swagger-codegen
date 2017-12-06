@@ -121,7 +121,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   override val projectSettings = {
     Seq(
-      watchSources ++= swaggerSourcesDir.value.***.get,
+      watchSources ++= swaggerSourcesDir.value.allPaths.get,
       sourceGenerators in Compile += Def.task {
         modelDyn.value ++ clientDyn.value ++ serverDyn.value
       }.taskValue,

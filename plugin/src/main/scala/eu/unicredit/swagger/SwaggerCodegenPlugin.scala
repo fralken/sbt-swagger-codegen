@@ -29,9 +29,9 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
     def apply(s: String) =
       s match {
-        case "singleFile" => SingleFile
+        case "singleFile"       => SingleFile
         case "oneFilePerSource" => OneFilePerSource
-        case "oneFilePerModel" => OneFilePerModel
+        case "oneFilePerModel"  => OneFilePerModel
         case any =>
           throw new Exception(
             s"Unsupported swaggerModelFileSplitting option $any please choose one of (singleFile | oneFilePerSource | oneFilePerModel)")
@@ -121,7 +121,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   override val projectSettings = {
     Seq(
-      watchSources ++= swaggerSourcesDir.value.***.get,
+      watchSources ++= swaggerSourcesDir.value.**("*.scala").get,
       sourceGenerators in Compile += Def.task {
         modelDyn.value ++ clientDyn.value ++ serverDyn.value
       }.taskValue,
@@ -230,19 +230,22 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     import FileSplittingModes._
     FileSplittingModes(fileSplittingMode) match {
       case SingleFile =>
-        val ss = SyntaxString("Model.scala",
+        val ss = SyntaxString(
+          "Model.scala",
           models.values.flatten.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
-          models.values.flatten.map(_.impl).toList.distinct.mkString("\n"))
+          models.values.flatten.map(_.impl).toList.distinct.mkString("\n")
+        )
 
         IO write (destDir / ss.name, ss.code)
       case OneFilePerSource =>
-        models.foreach { case (k, m) =>
-          val name = k.split(".yaml$|.json$").head.capitalize
-          val ss = SyntaxString(name + ".scala",
-            m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
-            m.map(_.impl).toList.distinct.mkString("\n"))
+        models.foreach {
+          case (k, m) =>
+            val name = k.split(".yaml$|.json$").head.capitalize
+            val ss = SyntaxString(name + ".scala",
+                                  m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
+                                  m.map(_.impl).toList.distinct.mkString("\n"))
 
-          IO write (destDir / ss.name, ss.code)
+            IO write (destDir / ss.name, ss.code)
         }
       case OneFilePerModel =>
         models.values.flatten.foreach { ss =>

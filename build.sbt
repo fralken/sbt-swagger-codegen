@@ -1,8 +1,17 @@
+import sbt.Keys.crossSbtVersions
+import xerial.sbt.Sonatype.sonatypeSettings
+
 lazy val common = Seq(
     organization := "eu.unicredit",
     version := "0.0.11-SNAPSHOT",
-    crossScalaVersions := Seq("2.10.4"),
-    scalacOptions ++= Seq("-target:jvm-1.7", "-feature", "-deprecation", "-language:_"),
+    crossSbtVersions := List("0.13.16", "1.0.4"),
+    scalaVersion := {
+      (sbtBinaryVersion in pluginCrossBuild).value match {
+        case "0.13" => "2.10.4"
+        case _      => "2.12.4"
+      }
+    },
+    scalacOptions ++= Seq("-feature", "-deprecation", "-language:_"),
     resolvers += Resolver.sonatypeRepo("releases")
   ) ++ sonatypePublish
 

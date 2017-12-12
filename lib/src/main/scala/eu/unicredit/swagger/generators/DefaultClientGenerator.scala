@@ -22,11 +22,16 @@ import eu.unicredit.swagger.StringUtils._
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode {
 
-  def clientNameFromFileName(fn: String) = objectNameFromFileName(fn, "Client")
+  def clientNameFromFileName(fn: String): String = objectNameFromFileName(fn, "Client")
+
+  /** Errors when the given string does not start with capital letter */
+  def lowerFirstLetter(pascal: String): String = pascal.toList match {
+    case firstLetter :: rest if firstLetter.isUpper => (firstLetter.toLower :: rest).mkString
+  }
 
   def generate(fileName: String, packageName: String): Iterable[SyntaxString] = {
     val swagger = new SwaggerParser().read(fileName)
@@ -39,8 +44,14 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val clientName =
       clientNameFromFileName(fileName)
 
+    val clientConfigName =
+      s"${clientName}Config"
+
+    val clientConfigMemberName =
+      lowerFirstLetter(clientConfigName)
+
     val completePaths =
-      swagger.getPaths.keySet().toSeq
+      swagger.getPaths.keySet().asScala.toList
 
     def composeClient(p: String): Seq[Tree] = {
       val path = swagger.getPath(p)
@@ -66,7 +77,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
         val url = doUrl(basePath, p)
 
-        genClientMethod(methodName, url, verb, op.getParameters, okRespType)
+        genClientMethod(methodName, url, verb, op.getParameters.asScala.toList, okRespType)
       }
     }
 
@@ -76,11 +87,27 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           IMPORT(packageName, "_"),
           IMPORT(packageName + ".json", "_"),
           IMPORT("play.api.libs.ws", "_"),
+          IMPORT("play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue"),
+          IMPORT("play.api.libs.ws.JsonBodyReadables.readableAsJson"),
           IMPORT("play.api.libs.json", "_"),
           IMPORT("javax.inject", "_"),
-          IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
+          IMPORT("scala.concurrent.ExecutionContext")
         )
       } inPackage clientPackageName
+
+    def RENDER_SCHEME_MEMBER: Tree =
+      VAL("scheme", StringClass).withFlags(Flags.PRIVATE) :=
+        IF(REF(clientConfigMemberName) DOT "ssl") THEN LIT("https") ELSE LIT("http")
+
+    def RENDER_BASE_URL_MEMBER: Tree =
+      VAL("baseUrl", StringClass) := INTERP(
+        StringContext_s,
+        REF("scheme"),
+        LIT("://"),
+        REF(clientConfigMemberName) DOT "host",
+        LIT(":"),
+        REF(clientConfigMemberName) DOT "port"
+      )
 
     val RENDER_URL_PARAMS: Tree =
       DEFINFER("_render_url_params") withFlags Flags.PRIVATE withParams PARAM(
@@ -110,11 +137,24 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
             (REF("k") INFIX ("->", REF("v") DOT "toString")))
         ))
 
-    val tree = CLASSDEF(clientName + " @Inject() (WS: WSClient)") withParams PARAM("baseUrl", StringClass) := BLOCK {
-      completePaths.flatMap(composeClient) :+ RENDER_URL_PARAMS :+ RENDER_HEADER_PARAMS
-    }
+    val clientConfigTree = CASECLASSDEF(clientConfigName)
+      .withParams(
+        PARAM("host", StringClass) := LIT("localhost"),
+        PARAM("port", IntClass),
+        PARAM("ssl", BooleanClass) := FALSE
+      )
+      .tree
 
-    Seq(SyntaxString(clientName + ".scala", treeToString(imports), treeToString(tree)))
+    val clientMembers = List(RENDER_SCHEME_MEMBER, RENDER_BASE_URL_MEMBER)
+    val clientHttpMethods = completePaths.flatMap(composeClient)
+    val clientHelperMethods = List(RENDER_URL_PARAMS, RENDER_HEADER_PARAMS)
+
+    val tree = CLASSDEF(s"$clientName @Inject() (WS: StandaloneWSClient, $clientConfigMemberName: $clientConfigName)")
+      .withParams(PARAM("ec", "ExecutionContext") withFlags Flags.IMPLICIT) := BLOCK {
+        clientMembers ::: clientHttpMethods ::: clientHelperMethods
+      }
+
+    Seq(SyntaxString(clientName + ".scala", treeToString(imports), treeToString(clientConfigTree, "", tree)))
   }
 
   def genClientMethod(methodName: String,
@@ -187,12 +227,16 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
                   }.getOrElse(REF("Unit"))
                 )
                 .ELSE(
-                  THROW(RuntimeExceptionClass,
-                        INFIX_CHAIN("+",
-                                    LIT("unexpected response status: "),
-                                    REF("resp") DOT "status",
-                                    LIT(" "),
-                                    REF("resp") DOT "body"))
+                  THROW(
+                    RuntimeExceptionClass,
+                    INTERP(
+                      StringContext_s,
+                      LIT("unexpected response status: "),
+                      REF("resp") DOT "status",
+                      LIT(" "),
+                      REF("resp") DOT "body"
+                    )
+                  )
                 )
             )
           }

@@ -48,10 +48,10 @@ trait SharedServerClientCode extends SwaggerConversion {
   def getMethodParams(params: Seq[Parameter]): Map[String, ValDef] =
     params
       .filter {
-        case _: PathParameter => true
-        case _: QueryParameter => true
+        case _: PathParameter   => true
+        case _: QueryParameter  => true
         case _: HeaderParameter => true
-        case _: BodyParameter => false
+        case _: BodyParameter   => false
         case x =>
           println(
             s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD")
@@ -59,8 +59,8 @@ trait SharedServerClientCode extends SwaggerConversion {
       }
       .sortBy { //the order must be verified...
         case _: HeaderParameter => 1
-        case _: PathParameter => 2
-        case _: QueryParameter => 3
+        case _: PathParameter   => 2
+        case _: QueryParameter  => 3
         // other subtypes have been removed already
       }
       .map(p => {

@@ -164,20 +164,22 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       REF("Action")
 
     val ANSWER =
-      resType._2.map { typ =>
-        REF(resType._1) APPLY (
-          REF("Json") DOT "toJson" APPLYTYPE typ APPLY (
-            REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1))
-          )
-        )
-      }.getOrElse(
-        BLOCK {
-          Seq(
-            REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1)),
-            REF(resType._1)
+      resType._2
+        .map { typ =>
+          REF(resType._1) APPLY (
+            REF("Json") DOT "toJson" APPLYTYPE typ APPLY (
+              REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1))
+            )
           )
         }
-      )
+        .getOrElse(
+          BLOCK {
+            Seq(
+              REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1)),
+              REF(resType._1)
+            )
+          }
+        )
 
     val ERROR =
       REF("BadRequest") APPLY (REF("service") DOT "onError" APPLY (LIT(methodName), REF("err")))
@@ -208,12 +210,12 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     params
       .filter {
         case body: BodyParameter => true
-        case _ => false
+        case _                   => false
       }
       .flatMap {
         case bp: BodyParameter =>
           val tree: ValDef = VAL(bp.getName) :=
-              REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp) APPLY (REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
+            REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp) APPLY (REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
 
           Some(bp.getName -> tree)
         case _ =>
@@ -228,7 +230,9 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
     super.generateImports(packageName, codeProvidedPackage, serviceName) :+
       IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
 
-  override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
+  override def genControllerMethod(methodName: String,
+                                   params: Seq[Parameter],
+                                   resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
@@ -240,13 +244,15 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
 
     val ANSWER =
       REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1)) DOT "map" APPLY (
-        LAMBDA(PARAM("answer")) ==> resType._2.map { typ =>
-          REF(resType._1) APPLY (
-            REF("Json") DOT "toJson" APPLYTYPE typ APPLY REF("answer")
+        LAMBDA(PARAM("answer")) ==> resType._2
+          .map { typ =>
+            REF(resType._1) APPLY (
+              REF("Json") DOT "toJson" APPLYTYPE typ APPLY REF("answer")
+            )
+          }
+          .getOrElse(
+            REF(resType._1)
           )
-        }.getOrElse(
-          REF(resType._1)
-        )
       )
 
     val ERROR =

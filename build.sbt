@@ -7,7 +7,7 @@ lazy val common = Seq(
     crossSbtVersions := List("0.13.16", "1.0.4"),
     scalaVersion := {
       (sbtBinaryVersion in pluginCrossBuild).value match {
-        case "0.13" => "2.10.4"
+        case "0.13" => "2.10.6"
         case _      => "2.12.4"
       }
     },
@@ -37,12 +37,11 @@ lazy val plugin = project
 
 lazy val root = project
   .in(file("."))
+  .settings(common)
   .settings(
-    publish := {}
+    skip in publish := true
   )
   .aggregate(lib, plugin)
-
-publishArtifact := false
 
 lazy val sonatypePublish = sonatypeSettings ++ Seq(
     publishMavenStyle := true,

@@ -13,7 +13,7 @@ This code generator is designed specifically for Swagger Spec Version 2.0. Moreo
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.10")`
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.11")`
 
 Enable it in your `build.sbt` like this:
 
@@ -92,12 +92,12 @@ PRs are really welcome and please open an Issue if you find that something is no
 
 ## Authors
 
-* Andrea Peruffo: <https://github.com/andreaTP>
-* Francesco Montecuccoli Degli Erri <https://github.com/fralken>
-* Marco Firrincieli: <https://github.com/mfirry>
+* Andrea Peruffo ([@andreaTP](https://github.com/andreaTP))
+* Francesco Montecuccoli Degli Erri ([@fralken](https://github.com/fralken))
+* Marco Firrincieli ([@mfirry](https://github.com/mfirry))
 
 ### Acknowledgements
 
-Thanks to Daniel Wunsch ([@dwunsch](https://github.com/dwunsch)) for his valuable contributions.
+Thanks to Daniel Wunsch ([@dwunsch](https://github.com/dwunsch)) and [@dvirf](https://github.com/dvirf) for their valuable contributions.
 
 *** This is a work in progress and we are not done with it! ***

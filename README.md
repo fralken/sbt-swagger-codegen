@@ -7,7 +7,7 @@ Moreover, you can do it directly within an `sbt` project.
 
 ## Compatibility
 
-This code generator is designed specifically for Swagger Spec Version 2.0. Moreover, it relies on [Play! Framework](http://www.playframework.com/) 2.5 for Json marshalling/unmarshalling, server- and client-side code.
+This code generator is designed specifically for Swagger Spec Version 2.0. Moreover, it relies on [Play! Framework](http://www.playframework.com/) 2.6 for Json marshalling/unmarshalling, server- and client-side code.
 
 ## Install
 
@@ -77,14 +77,13 @@ Moreover, you can extend this plugin by providing alternative implementations of
 
 ## Dependencies
 
-- scala version 2.11.X
-- play-sbt-plugin 2.5.3
-- play-json 2.5.3
-- play-ws 2.5.3 (only if you use client)
+- scala version 2.12.X
+- [play-ws-standalone-json 1.1.3](http://mvnrepository.com/artifact/com.typesafe.play/play-ws-standalone-json)
+- [play-ahc-ws-standalone 1.1.3](http://mvnrepository.com/artifact/com.typesafe.play/play-ahc-ws-standalone) (only if you use client)
 
 ### Limitations
 
-At the moment the project is developed to fullfill some internal projects needs, so do not expect it to cover all the corner cases of the Swagger Spec (i.e. some primitive types in body req or resp).
+At the moment the project is developed to fulfill some internal projects needs, so do not expect it to cover all the corner cases of the Swagger Spec (i.e. some primitive types in body req or resp).
 
 ## The road ahead
 

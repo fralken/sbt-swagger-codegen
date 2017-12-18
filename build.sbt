@@ -45,9 +45,8 @@ lazy val root = project
 
 lazy val sonatypePublish = sonatypeSettings ++ Seq(
     publishMavenStyle := true,
-    pomIncludeRepository := { _ =>
-    false
-  },
+    pomIncludeRepository := { _ => false },
+    publishTo := Some(sonatypeDefaultResolver.value),
     credentials += Credentials(Path.userHome / ".ivy2" / "sonatype.credentials"),
     pomExtra := {
     <url>https://github.com/unicredit/sbt-swagger-codegen</url>

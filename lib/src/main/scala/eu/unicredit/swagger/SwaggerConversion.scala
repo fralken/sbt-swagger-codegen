@@ -38,6 +38,8 @@ trait SwaggerConversion {
   private lazy val LocalDateClass =
     definitions.getClass("java.time.LocalDate")
 
+  private lazy val UuidClass = definitions.getClass("java.util.UUID")
+
   def noOptPropType(p: Property): Type = {
     p match {
       case s: StringProperty =>
@@ -66,6 +68,8 @@ trait SwaggerConversion {
         LocalDateClass
       case dt: DateTimeProperty =>
         OffsetDateTimeClass
+      case u: UUIDProperty =>
+        UuidClass
 
       case ba: ByteArrayProperty =>
         throw new Exception(s"ByteArrayProperty $p is not supported yet")
@@ -80,8 +84,6 @@ trait SwaggerConversion {
         throw new Exception(s"ObjectProperty $p is not supported yet")
       case p: PasswordProperty =>
         throw new Exception(s"PasswordProperty $p is not supported yet")
-      case u: UUIDProperty =>
-        throw new Exception(s"UUIDProperty $p is not supported yet")
 
       case null =>
         throw new Exception("Trying to resolve null property")

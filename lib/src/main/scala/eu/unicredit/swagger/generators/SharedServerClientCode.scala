@@ -64,7 +64,8 @@ trait SharedServerClientCode extends SwaggerConversion {
         // other subtypes have been removed already
       }
       .map(p => {
-        (p.getName, PARAM(p.getName, paramType(p)): ValDef)
+        val name = if (p.getName.contains("-")) s"`${p.getName}`" else p.getName
+        (name, PARAM(name, paramType(p)): ValDef)
       })
       .toMap
 

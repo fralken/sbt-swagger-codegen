@@ -87,8 +87,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           IMPORT(packageName, "_"),
           IMPORT(packageName + ".json", "_"),
           IMPORT("play.api.libs.ws", "_"),
-          IMPORT("play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue"),
-          IMPORT("play.api.libs.ws.JsonBodyReadables.readableAsJson"),
+          IMPORT("play.api.libs.ws.JsonBodyWritables", "_"),
           IMPORT("play.api.libs.json", "_"),
           IMPORT("javax.inject", "_"),
           IMPORT("scala.concurrent.ExecutionContext")
@@ -127,16 +126,6 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
             ELSE LIT("")
         ))
 
-    val RENDER_HEADER_PARAMS: Tree =
-      DEFINFER("_render_header_params") withFlags Flags.PRIVATE withParams PARAM(
-        "pairs",
-        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))) := BLOCK(
-        Seq(
-          REF("pairs")
-            DOT "collect" APPLY BLOCK(CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==>
-            (REF("k") INFIX ("->", REF("v") DOT "toString")))
-        ))
-
     val clientConfigTree = CASECLASSDEF(clientConfigName)
       .withParams(
         PARAM("host", StringClass) := LIT("localhost"),
@@ -147,11 +136,10 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val clientMembers = List(RENDER_SCHEME_MEMBER, RENDER_BASE_URL_MEMBER)
     val clientHttpMethods = completePaths.flatMap(composeClient)
-    val clientHelperMethods = List(RENDER_URL_PARAMS, RENDER_HEADER_PARAMS)
 
     val tree = CLASSDEF(s"$clientName @Inject() (WS: StandaloneWSClient, $clientConfigMemberName: $clientConfigName)")
       .withParams(PARAM("ec", "ExecutionContext") withFlags Flags.IMPLICIT) := BLOCK {
-        clientMembers ::: clientHttpMethods ::: clientHelperMethods
+        clientMembers ::: clientHttpMethods
       }
 
     Seq(SyntaxString(clientName + ".scala", treeToString(imports), treeToString(clientConfigTree, "", tree)))
@@ -186,10 +174,10 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val headerParams: Seq[Tree] =
       params collect {
         case param: HeaderParameter =>
-          val name = param.getName
-          LIT(name) INFIX ("->",
-          if (param.getRequired) REF("Some") APPLY REF(name)
-          else REF(name))
+          val name = if (param.getName.contains("-")) s"`${param.getName}`" else param.getName
+          LIT(param.getName) INFIX ("->",
+            if (param.getRequired)  REF(name)
+            else REF(name))
       }
 
     val baseUrl =
@@ -204,9 +192,9 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val wsUrlWithHeaders =
       if (headerParams.isEmpty)
         wsUrl
-      else
-        wsUrl DOT "withHeaders" APPLY SEQARG(THIS DOT "_render_header_params" APPLY (headerParams: _*))
-
+      else {
+        wsUrl DOT "addHttpHeaders" APPLY (headerParams: _*)
+      }
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams) := BLOCK(
         wsUrlWithHeaders DOT opType APPLY bodyParamsToBody.values DOT "map" APPLY (

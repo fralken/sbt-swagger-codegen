@@ -222,8 +222,12 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         fPath = file.getAbsolutePath
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
-        fName -> modelGenerator.generate(fPath, codegenPackage)
-      }).toMap
+        try {
+          Some(fName -> modelGenerator.generate(fPath, codegenPackage))
+        } catch {
+          case _: Exception => None
+        }
+      }).flatten.toMap
 
     val destDir = packageDir(targetDir, codegenPackage)
 

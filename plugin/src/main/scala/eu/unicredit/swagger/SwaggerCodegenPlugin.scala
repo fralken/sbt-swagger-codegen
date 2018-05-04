@@ -161,7 +161,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           generateJson = swaggerGenerateJsonRW.value,
           targetDir = swaggerModelCodeTargetDir.value.getAbsoluteFile,
           modelGenerator = swaggerModelCodeGenClass.value,
-          jsonGenerator = swaggerJsonCodeGenClass.value
+          jsonGenerator = swaggerJsonCodeGenClass.value,
+          logger = sLog.value
         )
       },
       swaggerServerCodeGen := {
@@ -210,7 +211,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                               generateJson: Boolean,
                               targetDir: File,
                               modelGenerator: ModelGenerator,
-                              jsonGenerator: JsonGenerator): Seq[File] = {
+                              jsonGenerator: JsonGenerator,
+                              logger: Logger): Seq[File] = {
 
     checkFileExistence(sourcesDir)
     IO delete targetDir
@@ -222,8 +224,14 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         fPath = file.getAbsolutePath
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
-        fName -> modelGenerator.generate(fPath, codegenPackage)
-      }).toMap
+        try {
+          Some(fName -> modelGenerator.generate(fPath, codegenPackage))
+        } catch {
+          case _: Exception =>
+            logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+            None
+        }
+      }).flatten.toMap
 
     val destDir = packageDir(targetDir, codegenPackage)
 

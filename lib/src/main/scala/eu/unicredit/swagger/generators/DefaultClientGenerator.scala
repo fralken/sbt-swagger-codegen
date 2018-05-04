@@ -59,9 +59,9 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
       val ops: Seq[(String, Operation)] =
         Seq(Option(path.getDelete) map ("delete" -> _),
-            Option(path.getGet) map ("get" -> _),
-            Option(path.getPost) map ("post" -> _),
-            Option(path.getPut) map ("put" -> _)).flatten
+          Option(path.getGet) map ("get" -> _),
+          Option(path.getPost) map ("post" -> _),
+          Option(path.getPut) map ("put" -> _)).flatten
 
       for {
         (verb, op) <- ops
@@ -87,8 +87,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           IMPORT(packageName, "_"),
           IMPORT(packageName + ".json", "_"),
           IMPORT("play.api.libs.ws", "_"),
-          IMPORT("play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue"),
-          IMPORT("play.api.libs.ws.JsonBodyReadables.readableAsJson"),
+          IMPORT("play.api.libs.ws.JsonBodyWritables", "_"),
           IMPORT("play.api.libs.json", "_"),
           IMPORT("javax.inject", "_"),
           IMPORT("scala.concurrent.ExecutionContext")
@@ -119,22 +118,12 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
               DOT "collect" APPLY BLOCK(
               CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==> (REF("k") INFIX ("+", LIT("=")) INFIX ("+", REF(
                 "v"))))
-          ),
+            ),
           IF(REF("parts") DOT "nonEmpty")
             THEN (
-              REF("parts") DOT "mkString" APPLY (LIT("?"), LIT("&"), LIT(""))
+            REF("parts") DOT "mkString" APPLY (LIT("?"), LIT("&"), LIT(""))
             )
             ELSE LIT("")
-        ))
-
-    val RENDER_HEADER_PARAMS: Tree =
-      DEFINFER("_render_header_params") withFlags Flags.PRIVATE withParams PARAM(
-        "pairs",
-        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))) := BLOCK(
-        Seq(
-          REF("pairs")
-            DOT "collect" APPLY BLOCK(CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==>
-            (REF("k") INFIX ("->", REF("v") DOT "toString")))
         ))
 
     val clientConfigTree = CASECLASSDEF(clientConfigName)
@@ -147,12 +136,11 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val clientMembers = List(RENDER_SCHEME_MEMBER, RENDER_BASE_URL_MEMBER)
     val clientHttpMethods = completePaths.flatMap(composeClient)
-    val clientHelperMethods = List(RENDER_URL_PARAMS, RENDER_HEADER_PARAMS)
 
     val tree = CLASSDEF(s"$clientName @Inject() (WS: StandaloneWSClient, $clientConfigMemberName: $clientConfigName)")
       .withParams(PARAM("ec", "ExecutionContext") withFlags Flags.IMPLICIT) := BLOCK {
-        clientMembers ::: clientHttpMethods ::: clientHelperMethods
-      }
+      clientMembers ::: clientHttpMethods
+    }
 
     Seq(SyntaxString(clientName + ".scala", treeToString(imports), treeToString(clientConfigTree, "", tree)))
   }
@@ -176,8 +164,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         case query: QueryParameter =>
           val name = query.getName
           LIT(name) INFIX ("->",
-          if (query.getRequired) REF("Some") APPLY REF(name)
-          else REF(name))
+            if (query.getRequired) REF("Some") APPLY REF(name)
+            else REF(name))
       }
 
     val RuntimeExceptionClass =
@@ -186,10 +174,10 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val headerParams: Seq[Tree] =
       params collect {
         case param: HeaderParameter =>
-          val name = param.getName
-          LIT(name) INFIX ("->",
-          if (param.getRequired) REF("Some") APPLY REF(name)
-          else REF(name))
+          val name = if (param.getName.contains("-")) s"`${param.getName}`" else param.getName
+          LIT(param.getName) INFIX ("->",
+            if (param.getRequired)  REF(name)
+            else REF(name))
       }
 
     val baseUrl =
@@ -204,9 +192,9 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val wsUrlWithHeaders =
       if (headerParams.isEmpty)
         wsUrl
-      else
-        wsUrl DOT "withHeaders" APPLY SEQARG(THIS DOT "_render_header_params" APPLY (headerParams: _*))
-
+      else {
+        wsUrl DOT "addHttpHeaders" APPLY (headerParams: _*)
+      }
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams) := BLOCK(
         wsUrlWithHeaders DOT opType APPLY bodyParamsToBody.values DOT "map" APPLY (
@@ -219,13 +207,13 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
                   PAREN(REF("resp") DOT "status" INFIX ("<=", LIT(299)))
                 )
               ).THEN(
-                  respType._2.map { typ =>
-                    {
-                      REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT
-                        "as" APPLYTYPE typ
-                    }
-                  }.getOrElse(REF("Unit"))
-                )
+                respType._2.map { typ =>
+                {
+                  REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT
+                    "as" APPLYTYPE typ
+                }
+                }.getOrElse(REF("Unit"))
+              )
                 .ELSE(
                   THROW(
                     RuntimeExceptionClass,
@@ -240,7 +228,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
                 )
             )
           }
-        ))
+          ))
 
     tree
   }

@@ -171,7 +171,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           codegenPackage = swaggerCodeGenPackage.value,
           sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
           codeProvidedPackage = swaggerCodeProvidedPackage.value,
-          serverGenerator = swaggerServerCodeGenClass.value
+          serverGenerator = swaggerServerCodeGenClass.value,
+          logger = sLog.value
         )
       },
       swaggerRoutesCodeGen := {
@@ -179,7 +180,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           codegenPackage = swaggerCodeGenPackage.value,
           sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
           targetRoutesFile = swaggerServerRoutesFile.value.getAbsoluteFile,
-          serverGenerator = swaggerServerCodeGenClass.value
+          serverGenerator = swaggerServerCodeGenClass.value,
+          logger = sLog.value
         )
       },
       swaggerClientCodeGen := {
@@ -187,7 +189,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           codegenPackage = swaggerCodeGenPackage.value,
           sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
           targetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile,
-          clientGenerator = swaggerClientCodeGenClass.value
+          clientGenerator = swaggerClientCodeGenClass.value,
+          logger = sLog.value
         )
       }
     )
@@ -266,7 +269,13 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           fPath = file.getAbsolutePath
           if fName.endsWith(".json") || fName.endsWith(".yaml")
         } yield {
-          jsonGenerator.generate(fPath, codegenPackage).toList
+          try {
+            jsonGenerator.generate(fPath, codegenPackage).toList
+          } catch {
+            case e: Exception =>
+              logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+              List.empty
+          }
         }).flatten
 
       jsonFormats.foreach { ss =>
@@ -282,7 +291,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                                codegenPackage: String,
                                sourcesDir: File,
                                codeProvidedPackage: String,
-                               serverGenerator: ServerGenerator): Seq[File] = {
+                               serverGenerator: ServerGenerator,
+                               logger: Logger): Seq[File] = {
     checkFileExistence(sourcesDir)
     IO delete targetDir
 
@@ -293,7 +303,14 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         fPath = file.getAbsolutePath
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
-        serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
+        try {
+          serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
+        } catch {
+          case e: Exception =>
+            logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+            Iterable.empty
+        }
+
       }).flatten
 
     val destDir = packageDir(targetDir, codegenPackage + ".controller")
@@ -308,7 +325,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   def swaggerRoutesCodeGenImpl(codegenPackage: String,
                                sourcesDir: File,
                                targetRoutesFile: File,
-                               serverGenerator: ServerGenerator): Seq[File] = {
+                               serverGenerator: ServerGenerator,
+                               logger: Logger): Seq[File] = {
     checkFileExistence(sourcesDir)
     IO delete targetRoutesFile
 
@@ -319,7 +337,13 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         fPath = file.getAbsolutePath
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
-        serverGenerator.generateRoutes(fPath, codegenPackage)
+        try {
+          serverGenerator.generateRoutes(fPath, codegenPackage)
+        } catch {
+          case e: Exception =>
+            logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+            None
+        }
       }).flatten
 
     val sr = routes.distinct.mkString("\n", "\n\n", "\n")
@@ -332,7 +356,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
   def swaggerClientCodeGenImpl(codegenPackage: String,
                                sourcesDir: File,
                                targetDir: File,
-                               clientGenerator: ClientGenerator): Seq[File] = {
+                               clientGenerator: ClientGenerator,
+                               logger: Logger): Seq[File] = {
     checkFileExistence(sourcesDir)
     IO delete targetDir
 
@@ -343,7 +368,13 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         fPath = file.getAbsolutePath
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
-        clientGenerator.generate(fPath, codegenPackage)
+        try {
+          clientGenerator.generate(fPath, codegenPackage)
+        } catch {
+          case e: Exception =>
+            logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+            Iterable.empty
+        }
       }).flatten
 
     val destDir = packageDir(targetDir, codegenPackage + ".client")

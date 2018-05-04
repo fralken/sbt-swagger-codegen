@@ -205,7 +205,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       if (headerParams.isEmpty)
         wsUrl
       else
-        wsUrl DOT "withHeaders" APPLY SEQARG(THIS DOT "_render_header_params" APPLY (headerParams: _*))
+        wsUrl DOT "addHttpHeaders" APPLY SEQARG(THIS DOT "_render_header_params" APPLY (headerParams: _*))
 
     val tree: Tree =
       DEFINFER(methodName) withParams (methodParams.values ++ bodyParams) := BLOCK(

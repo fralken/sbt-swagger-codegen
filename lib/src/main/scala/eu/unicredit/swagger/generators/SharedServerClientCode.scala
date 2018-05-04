@@ -64,7 +64,8 @@ trait SharedServerClientCode extends SwaggerConversion {
         // other subtypes have been removed already
       }
       .map(p => {
-        (p.getName, PARAM(p.getName, paramType(p)): ValDef)
+        val normalizedName = normalizeParam(p.getName)
+        (normalizedName, PARAM(normalizedName, paramType(p)): ValDef)
       })
       .toMap
 

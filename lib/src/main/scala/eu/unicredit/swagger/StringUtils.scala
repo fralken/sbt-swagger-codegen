@@ -33,4 +33,7 @@ object StringUtils {
 
   def doUrl(basePath: String, path: String): String =
     cleanUrl(cleanDuplicateSlash(basePath + sanitizePath(path)))
+
+  def normalizeParam(name: String): String =
+    if (name.contains("-")) s"`$name`" else name
 }

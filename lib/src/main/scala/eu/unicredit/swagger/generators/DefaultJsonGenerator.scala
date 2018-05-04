@@ -15,6 +15,7 @@
 package eu.unicredit.swagger.generators
 
 import eu.unicredit.swagger.SwaggerConversion
+import eu.unicredit.swagger.StringUtils._
 import treehugger.forest._
 import definitions._
 import io.swagger.parser.SwaggerParser
@@ -78,7 +79,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
                   SeqClass APPLY {
                     for ((pname, prop) <- properties)
                       yield {
-                        LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))
+                        LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT normalizeParam(pname)))
                       }
                   } DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull")))
                 }

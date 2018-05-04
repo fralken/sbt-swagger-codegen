@@ -95,11 +95,11 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         )
       } inPackage clientPackageName
 
-    def RENDER_SCHEME_MEMBER: Tree =
+    val RENDER_SCHEME_MEMBER: Tree =
       VAL("scheme", StringClass).withFlags(Flags.PRIVATE) :=
         IF(REF(clientConfigMemberName) DOT "ssl") THEN LIT("https") ELSE LIT("http")
 
-    def RENDER_BASE_URL_MEMBER: Tree =
+    val RENDER_BASE_URL_MEMBER: Tree =
       VAL("baseUrl", StringClass) := INTERP(
         StringContext_s,
         REF("scheme"),
@@ -174,10 +174,10 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val urlParams: Seq[Tree] =
       params collect {
         case query: QueryParameter =>
-          val name = query.getName
-          LIT(name) INFIX ("->",
-          if (query.getRequired) REF("Some") APPLY REF(name)
-          else REF(name))
+          val normalizedName = normalizeParam(query.getName)
+          LIT(query.getName) INFIX ("->",
+          if (query.getRequired) REF("Some") APPLY REF(normalizedName)
+          else REF(normalizedName))
       }
 
     val RuntimeExceptionClass =
@@ -185,11 +185,11 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val headerParams: Seq[Tree] =
       params collect {
-        case param: HeaderParameter =>
-          val name = param.getName
-          LIT(name) INFIX ("->",
-          if (param.getRequired) REF("Some") APPLY REF(name)
-          else REF(name))
+        case header: HeaderParameter =>
+          val normalizedName = normalizeParam(header.getName)
+          LIT(header.getName) INFIX ("->",
+          if (header.getRequired) REF("Some") APPLY REF(normalizedName)
+          else REF(normalizedName))
       }
 
     val baseUrl =
@@ -247,15 +247,16 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
   def getParamsToBody(params: Seq[Parameter]): Map[String, Tree] =
     params.collect {
-      case bp: BodyParameter =>
-        val tree = REF("Json") DOT "toJson" APPLY REF(bp.getName)
-        bp.getName -> tree
+      case body: BodyParameter =>
+        val normalizedName = normalizeParam(body.getName)
+        val tree = REF("Json") DOT "toJson" APPLY REF(normalizedName)
+        normalizedName -> tree
     }.toMap
 
   def getBodyParams(params: Seq[Parameter]): Seq[ValDef] =
     params.collect {
-      case bp: BodyParameter =>
-        val tree: ValDef = PARAM(bp.getName, noOptParamType(bp))
+      case body: BodyParameter =>
+        val tree: ValDef = PARAM(normalizeParam(body.getName), noOptParamType(body))
         tree
     }
 }

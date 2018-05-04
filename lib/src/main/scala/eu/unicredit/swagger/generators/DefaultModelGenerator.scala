@@ -19,6 +19,7 @@ import eu.unicredit.swagger.SwaggerConversion
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
+import eu.unicredit.swagger.StringUtils._
 
 import io.swagger.parser.SwaggerParser
 import io.swagger.models.properties._
@@ -31,7 +32,7 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
 
     val params: Iterable[ValDef] =
       for ((pname, prop) <- props) yield {
-        val param = PARAM(pname, propType(prop))
+        val param = PARAM(normalizeParam(pname), propType(prop))
         (if (prop.getRequired) param else param := NONE): ValDef
       }
 

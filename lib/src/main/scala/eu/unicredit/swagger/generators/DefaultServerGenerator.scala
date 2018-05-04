@@ -207,15 +207,16 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
   def getParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] =
     params
       .filter {
-        case body: BodyParameter => true
+        case _: BodyParameter => true
         case _ => false
       }
       .flatMap {
-        case bp: BodyParameter =>
-          val tree: ValDef = VAL(bp.getName) :=
-              REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp) APPLY (REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
+        case body: BodyParameter =>
+          val normalizedName = normalizeParam(body.getName)
+          val tree: ValDef = VAL(normalizedName) :=
+              REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(body) APPLY (REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
 
-          Some(bp.getName -> tree)
+          Some(normalizedName -> tree)
         case _ =>
           None
       }

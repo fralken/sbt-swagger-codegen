@@ -87,7 +87,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val swaggerClean = taskKey[Unit]("Clean swagger generated packages")
 
     val swaggerModelCodeGen =
-      taskKey[Seq[File]]("Generate swagger models and json converters")
+      taskKey[Seq[File]]("Generate swagger models and JSON converters")
 
     val swaggerServerCodeGen =
       taskKey[Seq[File]]("Generate swagger server controllers boilerplate")
@@ -201,7 +201,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
                        routesFile: File,
                        clientTargetDir: File,
                        codegenPackage: String,
-                       deleteRoutes: Boolean) = {
+                       deleteRoutes: Boolean): Unit = {
     if (deleteRoutes) routesFile.delete()
     IO delete packageDir(modelTargetDir, codegenPackage)
     IO delete packageDir(serverTargetDir, codegenPackage)

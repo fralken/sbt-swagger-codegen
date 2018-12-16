@@ -3,7 +3,7 @@ import xerial.sbt.Sonatype.sonatypeSettings
 
 lazy val common = Seq(
     organization := "eu.unicredit",
-    version := "0.1.0-SNAPSHOT",
+    version := "0.0.12-SNAPSHOT",
     crossSbtVersions := List("0.13.16", "1.0.4"),
     scalaVersion := {
       (sbtBinaryVersion in pluginCrossBuild).value match {

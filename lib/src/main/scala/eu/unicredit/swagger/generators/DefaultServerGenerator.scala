@@ -14,14 +14,16 @@
  */
 package eu.unicredit.swagger.generators
 
+import java.io.File
+
 import treehugger.forest._
 import definitions._
 import treehuggerDSL._
 import eu.unicredit.swagger.StringUtils._
-
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
+
 import scala.collection.JavaConverters._
 
 class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode {
@@ -32,6 +34,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
   def serviceNameFromFileName(fn: String) =
     objectNameFromFileName(fn, "Service")
 
+  def fileNameWithoutPath(fn: String) = new File(fn).getName
+
   override def generateRoutes(fileName: String, packageName: String): Option[String] = {
     val swagger = new SwaggerParser().read(fileName)
 
@@ -40,7 +44,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     val completePaths =
       swagger.getPaths.asScala.keySet.toSeq
 
-    def composeRoutes(p: String): Seq[String] = {
+    def composeRoutes(p: String): Seq[(String, String, String)] = {
       val path = swagger.getPath(p)
       if (path == null) return Seq()
 
@@ -75,14 +79,18 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         val methodCall =
           genMethodCall(controllerName, methodName, op.getParameters.asScala)
 
-        s"${padTo(8, verb)}            ${padTo(50, url)}          ${padTo(20, methodCall)}"
+        (verb, url, methodCall)
       }).toSeq
     }
 
-    val routes =
-      completePaths.flatMap(composeRoutes)
+    val routeParts = completePaths.flatMap(composeRoutes)
+    val maxUrlLength = routeParts.map(_._2.length).max
+    val routes = routeParts.map {
+      case (verb, url, methodCall) =>
+        s"${verb.padTo(8, ' ')} ${url.padTo(maxUrlLength, ' ')}    $methodCall"
+    }
 
-    if (routes.nonEmpty) Some(routes.mkString("\n\n", "\n\n", "\n"))
+    if (routes.nonEmpty) Some(routes.mkString(s"\n# Spec: ${fileNameWithoutPath(fileName)}\n\n", "\n", ""))
     else None
   }
 

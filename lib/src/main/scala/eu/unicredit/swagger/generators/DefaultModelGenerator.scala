@@ -15,56 +15,45 @@
 package eu.unicredit.swagger.generators
 
 import eu.unicredit.swagger.SwaggerConversion
-
-import treehugger.forest._
-import definitions._
-import treehuggerDSL._
-import eu.unicredit.swagger.StringUtils._
-
 import io.swagger.parser.SwaggerParser
 import io.swagger.models.properties._
+
 import scala.collection.JavaConverters._
+import scala.meta._
 
 class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
 
-  def generateClass(name: String, props: Iterable[(String, Property)], comments: Option[String]): String = {
-    val GenClass = RootClass.newClass(name)
-
-    val params: Iterable[ValDef] =
-      for ((pname, prop) <- props) yield {
-        val param = PARAM(normalizeParam(pname), propType(prop))
-        (if (prop.getRequired) param else param := NONE): ValDef
-      }
-
-    val tree: Tree =
-      if (params.isEmpty)
-        OBJECTDEF(GenClass) withFlags Flags.CASE
-      else
-        CLASSDEF(GenClass) withFlags Flags.CASE withParams params
-
-    val resTree = comments.map(tree withComment _).getOrElse(tree)
-
-    treeToString(resTree)
+  def generateStatement(name: String, props: Iterable[(String, Property)], comments: Option[String]): Stat = {
+    // FIXME comments not supported yet
+    if (props.isEmpty)
+      q"case object ${Term.Name(name)}"
+    else {
+      val params = props.map { case (pname, prop) =>
+        val default = if (prop.getRequired) None else Some(Term.Name("None"))
+        Term.Param(List(), Term.Name(pname), Some(propType(prop)), default)
+      }.toList
+      q"case class ${Type.Name(name)} (..$params)"
+    }
   }
 
-  def generateModelInit(packageName: String): String = {
-    //val initTree =
-    //PACKAGE(packageName)
-
-    //treeToString(initTree)
-    "package " + packageName
+  def generateImports(): List[Import] = {
+    List.empty
   }
 
-  def generate(fileName: String, destPackage: String): Iterable[SyntaxString] = {
+  def generate(fileName: String, destPackage: String): Iterable[SyntaxCode] = {
     val swagger = new SwaggerParser().read(fileName)
 
     val models = swagger.getDefinitions.asScala
 
+    val pkg = getPackageName(destPackage)
+    val imports = generateImports()
+
     for {
       (name, model) <- models
     } yield
-      SyntaxString(name + ".scala",
-                   generateModelInit(destPackage),
-                   generateClass(name, getProperties(model), Option(model.getDescription)))
+      SyntaxCode(name + ".scala",
+        pkg,
+        imports,
+        List(generateStatement(name, getProperties(model), Option(model.getDescription))))
   }
 }

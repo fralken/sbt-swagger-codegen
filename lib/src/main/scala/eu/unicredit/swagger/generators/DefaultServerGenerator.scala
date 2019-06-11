@@ -16,15 +16,13 @@ package eu.unicredit.swagger.generators
 
 import java.io.File
 
-import treehugger.forest._
-import definitions._
-import treehuggerDSL._
 import eu.unicredit.swagger.StringUtils._
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
 
 import scala.collection.JavaConverters._
+import scala.meta._
 
 class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode {
 
@@ -61,23 +59,18 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         (verb, op) <- ops
       } yield {
 
-        val url =
-          doUrl(basePath, p)
+        val url = doUrl(basePath, p)
 
         val methodName =
           if (op.getOperationId != null) op.getOperationId
           else throw new Exception("Please provide an operationId in: " + p)
 
         def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
-          val p = getMethodParams(params).map {
-            case (n, v) => s"$n: ${treeToString(v.tpt)}"
-          }
           // since it is a route definition, this is not Scala code, so we generate it manually
-          s"$className.$methodName" + p.mkString("(", ", ", ")")
+          s"$className.$methodName${getMethodParams(params).map(_._2.syntax).mkString("(", ", ", ")")}"
         }
 
-        val methodCall =
-          genMethodCall(controllerName, methodName, op.getParameters.asScala)
+        val methodCall = genMethodCall(controllerName, methodName, op.getParameters.asScala)
 
         (verb, url, methodCall)
       }).toSeq
@@ -94,38 +87,35 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     else None
   }
 
-  def generateImports(packageName: String, codeProvidedPackage: String, serviceName: String): Seq[Tree] =
-    Seq(
-      IMPORT(packageName, "_"),
-      IMPORT(packageName + ".json", "_"),
-      IMPORT("play.api.mvc.Results", "_"),
-      IMPORT("play.api.mvc", "_"),
-      IMPORT("play.api.libs.json", "_"),
-      IMPORT("javax.inject", "_"),
-      IMPORT(codeProvidedPackage, serviceName)
+  def generateImports(packageName: String, codeProvidedPackage: String, serviceName: String): List[Import] = {
+    List(
+      q"import ${getPackageName(packageName)}._",
+      q"import ${getPackageName(packageName)}.json._",
+      q"import play.api.mvc.Results._",
+      q"import play.api.mvc._",
+      q"import play.api.libs.json._",
+      q"import javax.inject._",
+      q"import ..${getImporter(codeProvidedPackage, serviceName)}"
     )
+  }
 
-  def generate(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxString] = {
+  def generate(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxCode] = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val controllerPackageName =
-      packageName + ".controller"
+    val controllerPackageName = packageName + ".controller"
 
-    val controllerName =
-      controllerNameFromFileName(fileName)
+    val controllerName = controllerNameFromFileName(fileName)
 
-    val serviceName =
-      serviceNameFromFileName(fileName)
+    val serviceName = serviceNameFromFileName(fileName)
 
-    val completePaths =
-      swagger.getPaths.asScala.keySet.toSeq
+    val completePaths = swagger.getPaths.asScala.keySet.toList
 
-    def composeController(p: String): Seq[Tree] = {
+    def composeController(p: String): List[Stat] = {
       val path = swagger.getPath(p)
-      if (path == null) return Seq()
+      if (path == null) return List()
 
-      val ops: Seq[Operation] =
-        Seq(Option(path.getDelete), Option(path.getGet), Option(path.getPost), Option(path.getPut)).flatten
+      val ops: List[Operation] =
+        List(Option(path.getDelete), Option(path.getGet), Option(path.getPost), Option(path.getPut)).flatten
 
       for {
         op <- ops
@@ -150,69 +140,51 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       }
     }
 
-    val imports =
-      BLOCK {
-        generateImports(packageName, codeProvidedPackage, serviceName)
-      } inPackage controllerPackageName
+    val imports = generateImports(packageName, codeProvidedPackage, serviceName)
 
-    val tree = CLASSDEF(controllerName + " @Inject()") withParams PARAM("service", TYPE_REF(serviceName)) :=
-      BLOCK(completePaths.map(composeController).flatten)
+    val tree = List(
+      q"""class ${Type.Name(controllerName)} @Inject() (${Term.Param(List(), q"service", Some(Type.Name(serviceName)), None)}) {
+            ..${completePaths.flatMap(composeController)}
+          }
+       """)
 
-    Seq(SyntaxString(controllerName + ".scala", treeToString(imports), treeToString(tree)))
+    Seq(SyntaxCode(controllerName + ".scala", getPackageName(controllerPackageName), imports, tree))
   }
 
-  def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
+  def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Stat = {
     val bodyParams = getParamsFromBody(params)
 
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
     val methodParams = getMethodParams(params)
 
-    val ACTION =
-      REF("Action")
-
-    val ANSWER =
+    val answer =
       resType._2.map { typ =>
-        REF(resType._1) APPLY (
-          REF("Json") DOT "toJson" APPLYTYPE typ APPLY (
-            REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1))
-          )
-        )
-      }.getOrElse(
-        BLOCK {
-          Seq(
-            REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1)),
-            REF(resType._1)
-          )
-        }
+        q"${Term.Name(resType._1)}(Json.toJson[$typ](service.${Term.Name(methodName)}(..${(methodParams ++ bodyParams).keys.toList})))"
+      }.getOrElse (
+        q"""
+            service.${Term.Name(methodName)}(..${(methodParams ++ bodyParams).keys.toList})
+            ${Term.Name(resType._1)}
+         """
       )
 
-    val ERROR =
-      REF("BadRequest") APPLY (REF("service") DOT "onError" APPLY (LIT(methodName), REF("err")))
-
-    val BODY_WITH_EXCEPTION_HANDLE =
-      TRY {
-        BLOCK {
-          (bodyParams.values: Seq[Tree]) :+
-            ANSWER
-        }
-      } CATCH (CASE(REF("err") withType RootClass.newClass("Throwable")) ==> BLOCK {
-        REF("err") DOT "printStackTrace"
-        ERROR
-      }) ENDTRY
-
-    val tree: Tree =
-      DEFINFER(methodName) withParams methodParams.values := BLOCK {
-        ACTION APPLY {
-          LAMBDA(PARAM("request")) ==>
-            BODY_WITH_EXCEPTION_HANDLE
-        }
-      }
+    val tree: Stat =
+      q"""
+          def ${Term.Name(methodName)}(..${methodParams.values.toList}) = {
+            Action(request =>
+              try {
+                ..${bodyParams.values.toList}
+                $answer
+              } catch {
+                case err: Throwable => BadRequest(service.onError(${Lit.String(methodName)}, err))
+              }
+            )}
+       """
 
     tree
   }
 
-  def getParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] =
+  def getParamsFromBody(params: Seq[Parameter]): Map[Term, Stat] =
     params
       .filter {
         case _: BodyParameter => true
@@ -220,11 +192,10 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       }
       .flatMap {
         case body: BodyParameter =>
-          val normalizedName = normalizeParam(body.getName)
-          val tree: ValDef = VAL(normalizedName) :=
-              REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(body) APPLY (REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
-
-          Some(normalizedName -> tree)
+          val name = Term.Name(body.getName)
+          val tree: Stat =
+            q"val ${Pat.Var(name)} = Json.fromJson[${noOptParamType(body)}](request.body.asJson.get).get"
+          Some(name -> tree)
         case _ =>
           None
       }
@@ -233,51 +204,30 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
 class DefaultAsyncServerGenerator extends DefaultServerGenerator {
 
-  override def generateImports(packageName: String, codeProvidedPackage: String, serviceName: String): Seq[Tree] =
+  override def generateImports(packageName: String, codeProvidedPackage: String, serviceName: String): List[Import] =
     super.generateImports(packageName, codeProvidedPackage, serviceName) :+
-      IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
+      q"import play.api.libs.concurrent.Execution.Implicits._"
 
-  override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
+  override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Stat = {
     val bodyParams = getParamsFromBody(params)
 
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
     val methodParams = getMethodParams(params)
 
-    val ACTION =
-      REF("Action.async")
-
-    val ANSWER =
-      REF("service") DOT methodName APPLY (methodParams ++ bodyParams).map(x => REF(x._1)) DOT "map" APPLY (
-        LAMBDA(PARAM("answer")) ==> resType._2.map { typ =>
-          REF(resType._1) APPLY (
-            REF("Json") DOT "toJson" APPLYTYPE typ APPLY REF("answer")
-          )
-        }.getOrElse(
-          REF(resType._1)
-        )
-      )
-
-    val ERROR =
-      REF("service") DOT "onError" APPLY (LIT(methodName), REF("err")) DOT "map" APPLY (LAMBDA(PARAM("errAnswer")) ==> REF(
-        "BadRequest") APPLY REF("errAnswer"))
-
-    val BODY_WITH_EXCEPTION_HANDLE =
-      BLOCK {
-        (bodyParams.values: Seq[Tree]) :+
-          ANSWER
-      } DOT "recoverWith" APPLY BLOCK(CASE(REF("err") withType RootClass.newClass("Throwable")) ==> BLOCK {
-        REF("err") DOT "printStackTrace"
-        ERROR
-      })
-
-    val tree: Tree =
-      DEFINFER(methodName) withParams methodParams.values := BLOCK {
-        ACTION APPLY {
-          LAMBDA(PARAM("request")) ==>
-            BODY_WITH_EXCEPTION_HANDLE
-        }
-      }
+    val tree: Stat =
+      q"""
+          def ${Term.Name(methodName)}(..${methodParams.values.toList}) = {
+            Action.async(request =>
+              {
+                ..${bodyParams.values.toList}
+                service.${Term.Name(methodName)}(..${(methodParams ++ bodyParams).keys.toList}).map(answer => ${resType._2.map { typ => q"${Term.Name(resType._1)}(Json.toJson[$typ](answer))"}.getOrElse(Term.Name(resType._1))})
+              }.recoverWith {
+                case err: Throwable => service.onError(${Lit.String(methodName)}, err).map(errAnswer => BadRequest(errAnswer))
+              }
+            )
+          }
+       """
 
     tree
   }

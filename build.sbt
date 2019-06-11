@@ -4,11 +4,11 @@ import xerial.sbt.Sonatype.sonatypeSettings
 lazy val common = Seq(
     organization := "eu.unicredit",
     version := "0.0.12-SNAPSHOT",
-    crossSbtVersions := List("0.13.16", "1.0.4"),
+    crossSbtVersions := List("0.13.18", "1.2.8"),
     scalaVersion := {
       (sbtBinaryVersion in pluginCrossBuild).value match {
-        case "0.13" => "2.10.6"
-        case _      => "2.12.4"
+        case "0.13" => "2.10.7"
+        case _      => "2.12.8"
       }
     },
     scalacOptions ++= Seq("-feature", "-deprecation", "-language:_"),
@@ -21,8 +21,8 @@ lazy val lib = project
   .settings(
     name := """sbt-swagger-codegen-lib""",
     libraryDependencies ++= Seq(
-      "com.eed3si9n" %% "treehugger" % "0.4.3",
-      "io.swagger" % "swagger-parser" % "1.0.27"
+      "org.scalameta" %% "scalameta" % "4.1.9",
+      "io.swagger" % "swagger-parser" % "1.0.44"
     )
   )
 

@@ -14,26 +14,28 @@
  */
 package eu.unicredit.swagger.generators
 
-case class SyntaxString(name: String, pre: String, impl: String) {
-  val code = s"$pre\n\n$impl"
+import scala.meta._
+
+case class SyntaxCode(name: String, pkg: Term.Ref, imports: List[Import], statements: List[Stat]) {
+  val code: String = q"package $pkg { ..${imports ++ statements} }".syntax
 }
 
 trait Generator {}
 
 trait ModelGenerator extends Generator {
-  def generate(fileName: String, destPackage: String): Iterable[SyntaxString]
+  def generate(fileName: String, destPackage: String): Iterable[SyntaxCode]
 }
 
 trait JsonGenerator extends Generator {
-  def generate(fileName: String, destPackage: String): Iterable[SyntaxString]
+  def generate(fileName: String, destPackage: String): Iterable[SyntaxCode]
 }
 
 trait ServerGenerator extends Generator {
   def generateRoutes(fileName: String, destPackage: String): Option[String] = None
 
-  def generate(fileName: String, destPackage: String, codeProvidedPackage: String): Iterable[SyntaxString]
+  def generate(fileName: String, destPackage: String, codeProvidedPackage: String): Iterable[SyntaxCode]
 }
 
 trait ClientGenerator extends Generator {
-  def generate(fileName: String, destPackage: String): Iterable[SyntaxString]
+  def generate(fileName: String, destPackage: String): Iterable[SyntaxCode]
 }

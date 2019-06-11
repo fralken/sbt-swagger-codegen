@@ -15,13 +15,10 @@
 package eu.unicredit.swagger.generators
 
 import eu.unicredit.swagger.SwaggerConversion
-import eu.unicredit.swagger.StringUtils._
-
-import treehugger.forest._
-import treehuggerDSL._
-
 import io.swagger.models._
 import io.swagger.models.parameters._
+
+import scala.meta._
 
 trait SharedServerClientCode extends SwaggerConversion {
   import java.io.File.separator
@@ -37,15 +34,7 @@ trait SharedServerClientCode extends SwaggerConversion {
       .capitalize + obj
   }
 
-  def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
-    val p = getMethodParams(params).map {
-      case (n, v) => s"$n: ${treeToString(v.tpt)}"
-    }
-    // since it is a route definition, this is not Scala code, so we generate it manually
-    s"$className.$methodName" + p.mkString("(", ", ", ")")
-  }
-
-  def getMethodParams(params: Seq[Parameter]): Map[String, ValDef] =
+  def getMethodParams(params: Seq[Parameter]): Map[Term, Term.Param] =
     params
       .filter {
         case _: PathParameter => true
@@ -53,8 +42,7 @@ trait SharedServerClientCode extends SwaggerConversion {
         case _: HeaderParameter => true
         case _: BodyParameter => false
         case x =>
-          println(
-            s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD")
+          println(s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD")
           false
       }
       .sortBy { //the order must be verified...
@@ -64,8 +52,8 @@ trait SharedServerClientCode extends SwaggerConversion {
         // other subtypes have been removed already
       }
       .map(p => {
-        val normalizedName = normalizeParam(p.getName)
-        (normalizedName, PARAM(normalizedName, paramType(p)): ValDef)
+        val name = Term.Name(p.getName)
+        (name, Term.Param(List(), name, Some(paramType(p)), None))
       })
       .toMap
 

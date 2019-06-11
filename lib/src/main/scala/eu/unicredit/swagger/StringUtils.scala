@@ -19,21 +19,12 @@ object StringUtils {
   private def sanitizePath(s: String): String =
     s.replaceAll("\\{([^}]+)\\}", ":$1").trim
 
-  def cleanDuplicateSlash(s: String): String =
+  private def cleanDuplicateSlash(s: String): String =
     s.replaceAll("//+", "/")
 
   private def cleanUrl(s: String): String =
     s.replace("/?", "?").replaceAll("/$", "")
 
-  def cleanPathParams(s: String): String =
-    s.replace(":", "$").trim
-
-  def padTo(n: Int, s: String): String =
-    s + " " * (n - s.length max 0)
-
   def doUrl(basePath: String, path: String): String =
     cleanUrl(cleanDuplicateSlash(basePath + sanitizePath(path)))
-
-  def normalizeParam(name: String): String =
-    if (name.contains("-")) s"`$name`" else name
 }

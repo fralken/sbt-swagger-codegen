@@ -14,15 +14,13 @@
  */
 package eu.unicredit.swagger.generators
 
-import treehugger.forest._
-import definitions._
-import treehuggerDSL._
 import eu.unicredit.swagger.StringUtils._
-
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
+
 import scala.collection.JavaConverters._
+import scala.meta._
 
 class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode {
 
@@ -33,32 +31,27 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     case firstLetter :: rest if firstLetter.isUpper => (firstLetter.toLower :: rest).mkString
   }
 
-  def generate(fileName: String, packageName: String): Iterable[SyntaxString] = {
+  def generate(fileName: String, packageName: String): Iterable[SyntaxCode] = {
     val swagger = new SwaggerParser().read(fileName)
 
     val basePath = Option(swagger.getBasePath).getOrElse("/")
 
-    val clientPackageName =
-      packageName + ".client"
+    val clientPackageName = packageName + ".client"
 
-    val clientName =
-      clientNameFromFileName(fileName)
+    val clientName = clientNameFromFileName(fileName)
 
-    val clientConfigName =
-      s"${clientName}Config"
+    val clientConfigName = s"${clientName}Config"
 
-    val clientConfigMemberName =
-      lowerFirstLetter(clientConfigName)
+    val clientConfigMemberName = lowerFirstLetter(clientConfigName)
 
-    val completePaths =
-      swagger.getPaths.keySet().asScala.toList
+    val completePaths = swagger.getPaths.keySet().asScala.toList
 
-    def composeClient(p: String): Seq[Tree] = {
+    def composeClient(p: String): List[Stat] = {
       val path = swagger.getPath(p)
-      if (path == null) return Seq()
+      if (path == null) return List()
 
-      val ops: Seq[(String, Operation)] =
-        Seq(Option(path.getDelete) map ("delete" -> _),
+      val ops: List[(String, Operation)] =
+        List(Option(path.getDelete) map ("delete" -> _),
             Option(path.getGet) map ("get" -> _),
             Option(path.getPost) map ("post" -> _),
             Option(path.getPut) map ("put" -> _)).flatten
@@ -82,86 +75,55 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     }
 
     val imports =
-      BLOCK {
-        Seq(
-          IMPORT(packageName, "_"),
-          IMPORT(packageName + ".json", "_"),
-          IMPORT("play.api.libs.ws", "_"),
-          IMPORT("play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue"),
-          IMPORT("play.api.libs.ws.JsonBodyReadables.readableAsJson"),
-          IMPORT("play.api.libs.json", "_"),
-          IMPORT("javax.inject", "_"),
-          IMPORT("scala.concurrent.ExecutionContext")
+        List(
+          q"import ${getPackageName(packageName)}._",
+          q"import ${getPackageName(packageName)}.json._",
+          q"import play.api.libs.ws._",
+          q"import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue",
+          q"import play.api.libs.ws.JsonBodyReadables.readableAsJson",
+          q"import play.api.libs.json._",
+          q"import javax.inject._",
+          q"import scala.concurrent.ExecutionContext"
         )
-      } inPackage clientPackageName
 
-    val RENDER_SCHEME_MEMBER: Tree =
-      VAL("scheme", StringClass).withFlags(Flags.PRIVATE) :=
-        IF(REF(clientConfigMemberName) DOT "ssl") THEN LIT("https") ELSE LIT("http")
-
-    val RENDER_BASE_URL_MEMBER: Tree =
-      VAL("baseUrl", StringClass) := INTERP(
-        StringContext_s,
-        REF("scheme"),
-        LIT("://"),
-        REF(clientConfigMemberName) DOT "host",
-        LIT(":"),
-        REF(clientConfigMemberName) DOT "port"
-      )
-
-    val RENDER_URL_PARAMS: Tree =
-      DEFINFER("_render_url_params") withFlags Flags.PRIVATE withParams PARAM(
-        "pairs",
-        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))) := BLOCK(
-        Seq(
-          VAL("parts") := (
-            REF("pairs")
-              DOT "collect" APPLY BLOCK(
-              CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==> (REF("k") INFIX ("+", LIT("=")) INFIX ("+", REF(
-                "v"))))
-          ),
-          IF(REF("parts") DOT "nonEmpty")
-            THEN (
-              REF("parts") DOT "mkString" APPLY (LIT("?"), LIT("&"), LIT(""))
-            )
-            ELSE LIT("")
-        ))
-
-    val RENDER_HEADER_PARAMS: Tree =
-      DEFINFER("_render_header_params") withFlags Flags.PRIVATE withParams PARAM(
-        "pairs",
-        TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))) := BLOCK(
-        Seq(
-          REF("pairs")
-            DOT "collect" APPLY BLOCK(CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==>
-            (REF("k") INFIX ("->", REF("v") DOT "toString")))
-        ))
-
-    val clientConfigTree = CASECLASSDEF(clientConfigName)
-      .withParams(
-        PARAM("host", StringClass) := LIT("localhost"),
-        PARAM("port", IntClass),
-        PARAM("ssl", BooleanClass) := FALSE
-      )
-      .tree
-
-    val clientMembers = List(RENDER_SCHEME_MEMBER, RENDER_BASE_URL_MEMBER)
     val clientHttpMethods = completePaths.flatMap(composeClient)
-    val clientHelperMethods = List(RENDER_URL_PARAMS, RENDER_HEADER_PARAMS)
 
-    val tree = CLASSDEF(s"$clientName @Inject() (WS: StandaloneWSClient, $clientConfigMemberName: $clientConfigName)")
-      .withParams(PARAM("ec", "ExecutionContext") withFlags Flags.IMPLICIT) := BLOCK {
-        clientMembers ::: clientHttpMethods ::: clientHelperMethods
-      }
+    val clientParams = List(
+      Term.Param(List(), q"WS", Some(t"StandaloneWSClient"), None),
+      Term.Param(List(), Term.Name(clientConfigMemberName), Some(Type.Name(clientConfigName)), None)
+    )
 
-    Seq(SyntaxString(clientName + ".scala", treeToString(imports), treeToString(clientConfigTree, "", tree)))
+    val tree = List(
+      q"""case class ${Type.Name(clientConfigName)}(host: String = "localhost", port: Int, ssl: Boolean = false)""",
+      q"""class ${Type.Name(clientName)} @Inject() (..$clientParams)(implicit ec: ExecutionContext) {
+            private val scheme: String = if (${Term.Name(clientConfigMemberName)}.ssl) "https" else "http"
+            val baseUrl: String = s"$$scheme://$${petStoreClientConfig.host}:$${petStoreClientConfig.port}"
+
+            private def renderUrlParams(pairs: (String, Option[Any])*) = {
+              val parts = pairs.collect({
+                 case (k, Some(v)) => k + "=" + v
+              })
+              if (parts.nonEmpty) parts.mkString("?", "&", "") else ""
+            }
+
+            private def renderHeaderParams(pairs: (String, Option[Any])*) = {
+              pairs.collect({
+                case (k, Some(v)) => k -> v.toString
+              })
+            }
+
+            ..$clientHttpMethods
+          }
+       """)
+
+    Seq(SyntaxCode(clientName + ".scala", getPackageName(clientPackageName), imports, tree))
   }
 
   def genClientMethod(methodName: String,
                       url: String,
                       opType: String,
-                      params: Seq[Parameter],
-                      respType: (String, Option[Type])): Tree = {
+                      params: List[Parameter],
+                      respType: (String, Option[Type])): Stat = {
     val bodyParams = getBodyParams(params)
 
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
@@ -171,92 +133,53 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     val methodParams = getMethodParams(params)
 
     //probably to be fixed with a custom ordering
-    val urlParams: Seq[Tree] =
+    val urlParams: List[Term] =
       params collect {
         case query: QueryParameter =>
-          val normalizedName = normalizeParam(query.getName)
-          LIT(query.getName) INFIX ("->",
-          if (query.getRequired) REF("Some") APPLY REF(normalizedName)
-          else REF(normalizedName))
+          val name = Term.Name(query.getName)
+          q"${Lit.String(query.getName)} -> ${if (query.getRequired) q"Some($name)" else name}"
       }
 
-    val RuntimeExceptionClass =
-      definitions.getClass("java.lang.RuntimeException")
-
-    val headerParams: Seq[Tree] =
+    val headerParams: List[Term] =
       params collect {
         case header: HeaderParameter =>
-          val normalizedName = normalizeParam(header.getName)
-          LIT(header.getName) INFIX ("->",
-          if (header.getRequired) REF("Some") APPLY REF(normalizedName)
-          else REF(normalizedName))
+          val name = Term.Name(header.getName)
+          q"${Lit.String(header.getName)} -> ${if (header.getRequired) q"Some($name)" else name}"
       }
 
     val baseUrl =
-      INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + cleanPathParams(url))))
-    val baseUrlWithParams =
       if (urlParams.isEmpty)
-        baseUrl
+        q"""s"$$baseUrl/""""
       else
-        baseUrl INFIX ("+", THIS DOT "_render_url_params" APPLY (urlParams: _*))
+        q"""s"$$baseUrl/$${renderUrlParams(..$urlParams)}""""
 
-    val wsUrl = REF("WS") DOT "url" APPLY baseUrlWithParams
-    val wsUrlWithHeaders =
+    val wsUrl =
       if (headerParams.isEmpty)
-        wsUrl
+        q"WS.url($baseUrl)"
       else
-        wsUrl DOT "addHttpHeaders" APPLY SEQARG(THIS DOT "_render_header_params" APPLY (headerParams: _*))
+        q"WS.url($baseUrl).addHttpHeaders(renderHeaderParams(..$headerParams): _*)"
 
-    val tree: Tree =
-      DEFINFER(methodName) withParams (methodParams.values ++ bodyParams) := BLOCK(
-        wsUrlWithHeaders DOT opType APPLY bodyParamsToBody.values DOT "map" APPLY (
-          LAMBDA(PARAM("resp")) ==> BLOCK {
-            Seq(
-              IF(
-                INFIX_CHAIN(
-                  "&&",
-                  PAREN(REF("resp") DOT "status" INFIX (">=", LIT(200))),
-                  PAREN(REF("resp") DOT "status" INFIX ("<=", LIT(299)))
-                )
-              ).THEN(
-                  respType._2.map { typ =>
-                    {
-                      REF("Json") DOT "parse" APPLY (REF("resp") DOT "body") DOT
-                        "as" APPLYTYPE typ
-                    }
-                  }.getOrElse(REF("Unit"))
-                )
-                .ELSE(
-                  THROW(
-                    RuntimeExceptionClass,
-                    INTERP(
-                      StringContext_s,
-                      LIT("unexpected response status: "),
-                      REF("resp") DOT "status",
-                      LIT(" "),
-                      REF("resp") DOT "body"
-                    )
-                  )
-                )
-            )
+    q"""def ${Term.Name(methodName)}(..${methodParams.values.toList ++ bodyParams}) = {
+          $wsUrl.${Term.Name(opType)}(..${bodyParamsToBody.values.toList}).map { resp =>
+            if ((resp.status >= 200) && (resp.status <= 299))
+              ${respType._2.map(typ => q"Json.parse(resp.body).as[$typ]").getOrElse(q"Unit")}
+            else
+              throw new java.lang.RuntimeException(s"unexpected response status: $${resp.status} $${resp.body}")
           }
-        ))
-
-    tree
+        }
+     """
   }
 
-  def getParamsToBody(params: Seq[Parameter]): Map[String, Tree] =
+  def getParamsToBody(params: List[Parameter]): Map[Term, Term] =
     params.collect {
       case body: BodyParameter =>
-        val normalizedName = normalizeParam(body.getName)
-        val tree = REF("Json") DOT "toJson" APPLY REF(normalizedName)
-        normalizedName -> tree
+        val name = Term.Name(body.getName)
+        name -> q"Json.toJson($name)"
     }.toMap
 
-  def getBodyParams(params: Seq[Parameter]): Seq[ValDef] =
+  def getBodyParams(params: List[Parameter]): List[Term.Param] =
     params.collect {
       case body: BodyParameter =>
-        val tree: ValDef = PARAM(normalizeParam(body.getName), noOptParamType(body))
-        tree
+        Term.Param(List(), Term.Name(body.getName), Some(noOptParamType(body)), None)
     }
 }

@@ -220,7 +220,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     checkFileExistence(sourcesDir)
     IO delete targetDir
 
-    val models: Map[String, Iterable[SyntaxString]] =
+    val models: Map[String, Iterable[SyntaxCode]] =
       (for {
         file <- sourcesDir.listFiles()
         fName = file.getName
@@ -230,8 +230,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         try {
           Some(fName -> modelGenerator.generate(fPath, codegenPackage))
         } catch {
-          case _: Exception =>
-            logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+          case e: Exception =>
+            logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
             None
         }
       }).flatten.toMap
@@ -241,17 +241,19 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     import FileSplittingModes._
     FileSplittingModes(fileSplittingMode) match {
       case SingleFile =>
-        val ss = SyntaxString("Model.scala",
-          models.values.flatten.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
-          models.values.flatten.map(_.impl).toList.distinct.mkString("\n"))
+        val ss = SyntaxCode("Model.scala",
+          models.values.flatten.head.pkg,
+          models.values.flatten.flatMap(_.imports).toList,
+          models.values.flatten.flatMap(_.statements).toList)
 
         IO write (destDir / ss.name, ss.code)
       case OneFilePerSource =>
-        models.foreach { case (k, m) =>
-          val name = k.split(".yaml$|.json$").head.capitalize
-          val ss = SyntaxString(name + ".scala",
-            m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
-            m.map(_.impl).toList.distinct.mkString("\n"))
+        models.foreach { case (fileName, model) =>
+          val name = fileName.split(".yaml$|.json$").head.capitalize
+          val ss = SyntaxCode(name + ".scala",
+            model.head.pkg,
+            model.flatMap(_.imports).toList,
+            model.flatMap(_.statements).toList)
 
           IO write (destDir / ss.name, ss.code)
         }
@@ -273,7 +275,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
             jsonGenerator.generate(fPath, codegenPackage).toList
           } catch {
             case e: Exception =>
-              logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+              logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
               List.empty
           }
         }).flatten
@@ -307,7 +309,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
         } catch {
           case e: Exception =>
-            logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+            logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
             Iterable.empty
         }
 
@@ -341,7 +343,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           serverGenerator.generateRoutes(fPath, codegenPackage)
         } catch {
           case e: Exception =>
-            logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+            logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
             None
         }
       }).flatten
@@ -372,7 +374,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           clientGenerator.generate(fPath, codegenPackage)
         } catch {
           case e: Exception =>
-            logger.warn(s"Invalid swagger format: ${file.getCanonicalPath}")
+            logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
             Iterable.empty
         }
       }).flatten

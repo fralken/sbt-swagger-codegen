@@ -14,25 +14,18 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.SwaggerConversion
+import eu.unicredit.swagger.SwaggerConverters
 import io.swagger.parser.SwaggerParser
-import io.swagger.models.properties._
 
 import scala.collection.JavaConverters._
 import scala.meta._
 
-class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
+class DefaultModelGenerator extends ModelGenerator with SwaggerConverters {
 
-  def generateStatement(name: String, props: Iterable[(String, Property)], comments: Option[String]): Stat = {
-    // FIXME comments not supported yet
-    if (props.isEmpty)
-      q"case object ${Term.Name(name)}"
-    else {
-      val params = props.map { case (pname, prop) =>
-        val default = if (prop.getRequired) None else Some(Term.Name("None"))
-        Term.Param(List(), Term.Name(pname), Some(propType(prop)), default)
-      }.toList
-      q"case class ${Type.Name(name)} (..$params)"
+  def generateStatement(name: String, parameters: Option[List[Term.Param]], comments: Option[String]): Stat = {
+    parameters match {
+      case None => q"case object ${Term.Name(name)}"
+      case Some(params) =>  q"case class ${Type.Name(name)} (..$params)"
     }
   }
 
@@ -45,7 +38,7 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
 
     val models = swagger.getDefinitions.asScala
 
-    val pkg = getPackageName(destPackage)
+    val pkg = getPackageTerm(destPackage)
     val imports = generateImports()
 
     for {
@@ -54,6 +47,6 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
       SyntaxCode(name + ".scala",
         pkg,
         imports,
-        List(generateStatement(name, getProperties(model), Option(model.getDescription))))
+        List(generateStatement(name.capitalize, propertiesToParams(model.getProperties), Option(model.getDescription))))
   }
 }

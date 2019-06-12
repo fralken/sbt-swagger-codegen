@@ -14,13 +14,12 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.SwaggerConversion
+import eu.unicredit.swagger.SwaggerConverters
 import io.swagger.models._
-import io.swagger.models.parameters._
 
 import scala.meta._
 
-trait SharedServerClientCode extends SwaggerConversion {
+trait SharedServerClientCode extends SwaggerConverters {
   import java.io.File.separator
   import java.io.File.separatorChar
 
@@ -34,34 +33,11 @@ trait SharedServerClientCode extends SwaggerConversion {
       .capitalize + obj
   }
 
-  def getMethodParams(params: Seq[Parameter]): Map[Term, Term.Param] =
-    params
-      .filter {
-        case _: PathParameter => true
-        case _: QueryParameter => true
-        case _: HeaderParameter => true
-        case _: BodyParameter => false
-        case x =>
-          println(s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD")
-          false
-      }
-      .sortBy { //the order must be verified...
-        case _: HeaderParameter => 1
-        case _: PathParameter => 2
-        case _: QueryParameter => 3
-        // other subtypes have been removed already
-      }
-      .map(p => {
-        val name = Term.Name(p.getName)
-        (name, Term.Param(List(), name, Some(paramType(p)), None))
-      })
-      .toMap
-
-  def getOkRespType(op: Operation): Option[(String, Option[Type])] =
+  def getResponseResultsAndTypes(op: Operation): Option[(Term, Option[Type])] =
     respTypeMap.flatMap {
       case (k, v) =>
         Option(op.getResponses get k) map { response =>
-          v -> Option(response.getSchema).map(noOptPropType)
+          Term.Name(v) -> getResponseType(response)
         }
     }.headOption
 

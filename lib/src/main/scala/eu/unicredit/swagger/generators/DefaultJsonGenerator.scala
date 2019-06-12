@@ -14,13 +14,27 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.SwaggerConversion
+import eu.unicredit.swagger.SwaggerConverters
 import io.swagger.parser.SwaggerParser
 import scala.meta._
 
 import scala.collection.JavaConverters._
 
-class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
+class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
+
+  def isOption(thisType: Type): Boolean = {
+    thisType match {
+      case Type.Apply(name, _) => name.syntax == "Option"
+      case _ => false
+    }
+  }
+
+  def getOptionalType(thisType: Type): Type = {
+    thisType match {
+      case Type.Apply(name, args) if name.syntax == "Option" => args.head
+      case _ => thisType
+    }
+  }
 
   def generateImports(): List[Import] = {
     List(q"import play.api.libs.json._")
@@ -31,40 +45,44 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
 
     val models = swagger.getDefinitions.asScala
 
-    models.flatMap { case (name, model) =>
-      val properties = getProperties(model)
-      val typeName = Type.Name(if (properties.isEmpty) s"$name.type" else name)
+    models.flatMap { case (originalName, model) =>
+      propertiesToParams(model.getProperties) match {
+        case None => List.empty
+        case Some(params) =>
+          val name = originalName.capitalize
+          val typeName = Type.Name(if (params.isEmpty) s"$name.type" else name)
 
-      val readsName = Pat.Var(Term.Name(s"${name}Reads"))
-      val readsParams = properties.map { case (pname, prop) =>
-          val mtd = Term.Name(if (prop.getRequired) "as" else "asOpt")
-          q"""(json \ ${Lit.String(pname)}).$mtd[${noOptPropType(prop)}]"""
-        }.toList
+          val readsName = Pat.Var(Term.Name(s"${name}Reads"))
+          val readsParams = params.map { param =>
+            val mtd = Term.Name(if (isOption(param.decltpe.get)) "asOpt" else "as")
+            q"""(json \ ${Lit.String(param.name.value)}).$mtd[${getOptionalType(param.decltpe.get)}]"""
+          }
 
-      val readsStat =
-        q"""implicit lazy val $readsName: Reads[$typeName] = Reads[$typeName] {
-              json => JsSuccess(${Term.Name(name)}(..$readsParams))
-            }
-         """
+          val readsStat =
+            q"""implicit lazy val $readsName: Reads[$typeName] = Reads[$typeName] {
+                  json => JsSuccess(${Term.Name(name)}(..$readsParams))
+                }
+             """
 
-      val writesName = Pat.Var(Term.Name(s"${name}Writes"))
-      val writeParams = properties.map { case (pname, _) =>
-          q"""${Lit.String(pname)} -> Json.toJson(o.${Term.Name(pname)})"""
-        }.toList
+          val writesName = Pat.Var(Term.Name(s"${name}Writes"))
+          val writeParams = params.map { param =>
+            q"""${Lit.String(param.name.value)} -> Json.toJson(o.${Term.Name(param.name.value)})"""
+          }
 
-      val writesStat =
-        q"""implicit lazy val $writesName: Writes[$typeName] = Writes[$typeName] {
-              o => JsObject(Seq(..$writeParams).filter(_._2 != JsNull))
-            }
-         """
+          val writesStat =
+            q"""implicit lazy val $writesName: Writes[$typeName] = Writes[$typeName] {
+                  o => JsObject(Seq(..$writeParams).filter(_._2 != JsNull))
+                }
+             """
 
-      List(readsStat, writesStat)
+          List(readsStat, writesStat)
+      }
     }.toList
   }
 
   def generate(fileName: String, destPackage: String): Iterable[SyntaxCode] = {
     val imports = generateImports()
     val pkgObj = q"package object json { ..${generateStatements(fileName)} }"
-    Seq(SyntaxCode("json", getPackageName(destPackage), imports, List(pkgObj)))
+    Seq(SyntaxCode("json", getPackageTerm(destPackage), imports, List(pkgObj)))
   }
 }

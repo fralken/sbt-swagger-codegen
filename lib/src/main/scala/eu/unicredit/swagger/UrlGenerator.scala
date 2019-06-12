@@ -14,7 +14,7 @@
  */
 package eu.unicredit.swagger
 
-object StringUtils {
+object UrlGenerator {
 
   private def sanitizePath(s: String): String =
     s.replaceAll("\\{([^}]+)\\}", ":$1").trim
@@ -25,6 +25,6 @@ object StringUtils {
   private def cleanUrl(s: String): String =
     s.replace("/?", "?").replaceAll("/$", "")
 
-  def doUrl(basePath: String, path: String): String =
+  def generateUrl(basePath: String, path: String): String =
     cleanUrl(cleanDuplicateSlash(basePath + sanitizePath(path)))
 }

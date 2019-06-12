@@ -14,7 +14,7 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.StringUtils._
+import eu.unicredit.swagger.UrlGenerator._
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
@@ -26,9 +26,17 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
   def clientNameFromFileName(fn: String): String = objectNameFromFileName(fn, "Client")
 
-  /** Errors when the given string does not start with capital letter */
-  def lowerFirstLetter(pascal: String): String = pascal.toList match {
-    case firstLetter :: rest if firstLetter.isUpper => (firstLetter.toLower :: rest).mkString
+  def generateImports(packageName: String): List[Import] = {
+    List(
+      q"import ${getPackageTerm(packageName)}._",
+      q"import ${getPackageTerm(packageName)}.json._",
+      q"import play.api.libs.ws._",
+      q"import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue",
+      q"import play.api.libs.ws.JsonBodyReadables.readableAsJson",
+      q"import play.api.libs.json._",
+      q"import javax.inject._",
+      q"import scala.concurrent.ExecutionContext"
+    )
   }
 
   def generate(fileName: String, packageName: String): Iterable[SyntaxCode] = {
@@ -40,15 +48,13 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val clientName = clientNameFromFileName(fileName)
 
-    val clientConfigName = s"${clientName}Config"
-
-    val clientConfigMemberName = lowerFirstLetter(clientConfigName)
+    val clientConfigType = Type.Name(s"${clientName}Config")
 
     val completePaths = swagger.getPaths.keySet().asScala.toList
 
     def composeClient(p: String): List[Stat] = {
       val path = swagger.getPath(p)
-      if (path == null) return List()
+      if (path == null) return List.empty
 
       val ops: List[(String, Operation)] =
         List(Option(path.getDelete) map ("delete" -> _),
@@ -63,41 +69,24 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           if (op.getOperationId != null) op.getOperationId
           else throw new Exception("Please provide an operationId in: " + p)
 
-        val okRespType: (String, Option[Type]) =
-          getOkRespType(op) getOrElse {
+        val reesponseType: (Term, Option[Type]) =
+          getResponseResultsAndTypes(op) getOrElse {
             throw new Exception(s"cannot determine Ok result type for $methodName")
           }
 
-        val url = doUrl(basePath, p)
+        val url = generateUrl(basePath, p)
 
-        genClientMethod(methodName, url, verb, op.getParameters.asScala.toList, okRespType)
+        genClientMethod(methodName, url, verb, op.getParameters.asScala.toList, reesponseType)
       }
     }
 
-    val imports =
-        List(
-          q"import ${getPackageName(packageName)}._",
-          q"import ${getPackageName(packageName)}.json._",
-          q"import play.api.libs.ws._",
-          q"import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue",
-          q"import play.api.libs.ws.JsonBodyReadables.readableAsJson",
-          q"import play.api.libs.json._",
-          q"import javax.inject._",
-          q"import scala.concurrent.ExecutionContext"
-        )
-
     val clientHttpMethods = completePaths.flatMap(composeClient)
 
-    val clientParams = List(
-      Term.Param(List(), q"WS", Some(t"StandaloneWSClient"), None),
-      Term.Param(List(), Term.Name(clientConfigMemberName), Some(Type.Name(clientConfigName)), None)
-    )
-
     val tree = List(
-      q"""case class ${Type.Name(clientConfigName)}(host: String = "localhost", port: Int, ssl: Boolean = false)""",
-      q"""class ${Type.Name(clientName)} @Inject() (..$clientParams)(implicit ec: ExecutionContext) {
-            private val scheme: String = if (${Term.Name(clientConfigMemberName)}.ssl) "https" else "http"
-            val baseUrl: String = s"$$scheme://$${petStoreClientConfig.host}:$${petStoreClientConfig.port}"
+      q"""case class $clientConfigType(host: String = "localhost", port: Int, ssl: Boolean = false)""",
+      q"""class ${Type.Name(clientName)} @Inject() (ws: StandaloneWSClient, clientConfig: $clientConfigType)(implicit ec: ExecutionContext) {
+            private val scheme: String = if (clientConfig.ssl) "https" else "http"
+            val baseUrl: String = s"$$scheme://$${clientConfig.host}:$${clientConfig.port}"
 
             private def renderUrlParams(pairs: (String, Option[Any])*) = {
               val parts = pairs.collect({
@@ -116,21 +105,18 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           }
        """)
 
-    Seq(SyntaxCode(clientName + ".scala", getPackageName(clientPackageName), imports, tree))
+    Seq(SyntaxCode(clientName + ".scala", getPackageTerm(clientPackageName), generateImports(packageName), tree))
   }
 
   def genClientMethod(methodName: String,
                       url: String,
                       opType: String,
                       params: List[Parameter],
-                      respType: (String, Option[Type])): Stat = {
-    val bodyParams = getBodyParams(params)
-
+                      responseType: (Term, Option[Type])): Stat = {
+    val bodyParams = parametersToBodyParams(params)
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
-    val bodyParamsToBody = getParamsToBody(params)
-
-    val methodParams = getMethodParams(params)
+    val methodParams = parametersToMethodParams(params)
 
     //probably to be fixed with a custom ordering
     val urlParams: List[Term] =
@@ -155,31 +141,18 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val wsUrl =
       if (headerParams.isEmpty)
-        q"WS.url($baseUrl)"
+        q"ws.url($baseUrl)"
       else
-        q"WS.url($baseUrl).addHttpHeaders(renderHeaderParams(..$headerParams): _*)"
+        q"ws.url($baseUrl).addHttpHeaders(renderHeaderParams(..$headerParams): _*)"
 
-    q"""def ${Term.Name(methodName)}(..${methodParams.values.toList ++ bodyParams}) = {
-          $wsUrl.${Term.Name(opType)}(..${bodyParamsToBody.values.toList}).map { resp =>
+    q"""def ${Term.Name(methodName)}(..${methodParams ++ bodyParams}) = {
+          $wsUrl.${Term.Name(opType)}(..${getParamsNames(bodyParams).map(name => q"Json.toJson($name)")}).map { resp =>
             if ((resp.status >= 200) && (resp.status <= 299))
-              ${respType._2.map(typ => q"Json.parse(resp.body).as[$typ]").getOrElse(q"Unit")}
+              ${responseType._2.map(typ => q"Json.parse(resp.body).as[$typ]").getOrElse(q"Unit")}
             else
               throw new java.lang.RuntimeException(s"unexpected response status: $${resp.status} $${resp.body}")
           }
         }
      """
   }
-
-  def getParamsToBody(params: List[Parameter]): Map[Term, Term] =
-    params.collect {
-      case body: BodyParameter =>
-        val name = Term.Name(body.getName)
-        name -> q"Json.toJson($name)"
-    }.toMap
-
-  def getBodyParams(params: List[Parameter]): List[Term.Param] =
-    params.collect {
-      case body: BodyParameter =>
-        Term.Param(List(), Term.Name(body.getName), Some(noOptParamType(body)), None)
-    }
 }

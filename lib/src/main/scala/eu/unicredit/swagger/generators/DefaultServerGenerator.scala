@@ -16,7 +16,7 @@ package eu.unicredit.swagger.generators
 
 import java.io.File
 
-import eu.unicredit.swagger.StringUtils._
+import eu.unicredit.swagger.UrlGenerator._
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
@@ -44,7 +44,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     def composeRoutes(p: String): Seq[(String, String, String)] = {
       val path = swagger.getPath(p)
-      if (path == null) return Seq()
+      if (path == null) return Seq.empty
 
       val ops: Map[String, Operation] =
         Seq(Option(path.getDelete) map ("DELETE" -> _),
@@ -59,18 +59,18 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         (verb, op) <- ops
       } yield {
 
-        val url = doUrl(basePath, p)
+        val url = generateUrl(basePath, p)
 
         val methodName =
           if (op.getOperationId != null) op.getOperationId
           else throw new Exception("Please provide an operationId in: " + p)
 
-        def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
+        def genMethodCall(className: String, methodName: String, params: List[Parameter]): String = {
           // since it is a route definition, this is not Scala code, so we generate it manually
-          s"$className.$methodName${getMethodParams(params).map(_._2.syntax).mkString("(", ", ", ")")}"
+          s"$className.$methodName${parametersToMethodParams(params).map(_.syntax).mkString("(", ", ", ")")}"
         }
 
-        val methodCall = genMethodCall(controllerName, methodName, op.getParameters.asScala)
+        val methodCall = genMethodCall(controllerName, methodName, op.getParameters.asScala.toList)
 
         (verb, url, methodCall)
       }).toSeq
@@ -89,13 +89,13 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
   def generateImports(packageName: String, codeProvidedPackage: String, serviceName: String): List[Import] = {
     List(
-      q"import ${getPackageName(packageName)}._",
-      q"import ${getPackageName(packageName)}.json._",
+      q"import ${getPackageTerm(packageName)}._",
+      q"import ${getPackageTerm(packageName)}.json._",
       q"import play.api.mvc.Results._",
       q"import play.api.mvc._",
       q"import play.api.libs.json._",
       q"import javax.inject._",
-      q"import ..${getImporter(codeProvidedPackage, serviceName)}"
+      q"import ..${getImporters((codeProvidedPackage, serviceName))}"
     )
   }
 
@@ -131,12 +131,12 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
           if (op.getOperationId != null) op.getOperationId
           else throw new Exception("Please provide an operationId in: " + p)
 
-        val okRespType: (String, Option[Type]) =
-          getOkRespType(op) getOrElse {
+        val okRespType: (Term, Option[Type]) =
+          getResponseResultsAndTypes(op) getOrElse {
             throw new Exception(s"cannot determine Ok result type for $methodName")
           }
 
-        genControllerMethod(methodName, op.getParameters.asScala, okRespType)
+        genControllerMethod(methodName, op.getParameters.asScala.toList, okRespType)
       }
     }
 
@@ -148,58 +148,46 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
           }
        """)
 
-    Seq(SyntaxCode(controllerName + ".scala", getPackageName(controllerPackageName), imports, tree))
+    Seq(SyntaxCode(controllerName + ".scala", getPackageTerm(controllerPackageName), imports, tree))
   }
 
-  def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Stat = {
-    val bodyParams = getParamsFromBody(params)
-
+  def genControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
+    val bodyParams = parametersToBodyParams(params)
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
-    val methodParams = getMethodParams(params)
+    val methodParams = parametersToMethodParams(params)
+
+    val paramNames = getParamsNames(methodParams ++ bodyParams)
+
+    val methodTerm = Term.Name(methodName)
+    val methodLiteral = Lit.String(methodName)
 
     val answer =
       resType._2.map { typ =>
-        q"${Term.Name(resType._1)}(Json.toJson[$typ](service.${Term.Name(methodName)}(..${(methodParams ++ bodyParams).keys.toList})))"
+        q"${resType._1}(Json.toJson[$typ](service.$methodTerm(..$paramNames)))"
       }.getOrElse (
         q"""
-            service.${Term.Name(methodName)}(..${(methodParams ++ bodyParams).keys.toList})
-            ${Term.Name(resType._1)}
+            service.$methodTerm(..$paramNames)
+            ${resType._1}
          """
       )
 
-    val tree: Stat =
-      q"""
-          def ${Term.Name(methodName)}(..${methodParams.values.toList}) = {
-            Action(request =>
-              try {
-                ..${bodyParams.values.toList}
-                $answer
-              } catch {
-                case err: Throwable => BadRequest(service.onError(${Lit.String(methodName)}, err))
-              }
-            )}
-       """
-
-    tree
+    q"""
+        def ${Term.Name(methodName)}(..$methodParams) = {
+          Action(request =>
+            try {
+              ..${bodyParams.map(generateStatementFromBodyParameter)}
+              $answer
+            } catch {
+              case err: Throwable => BadRequest(service.onError($methodLiteral, err))
+            }
+          )}
+     """
   }
 
-  def getParamsFromBody(params: Seq[Parameter]): Map[Term, Stat] =
-    params
-      .filter {
-        case _: BodyParameter => true
-        case _ => false
-      }
-      .flatMap {
-        case body: BodyParameter =>
-          val name = Term.Name(body.getName)
-          val tree: Stat =
-            q"val ${Pat.Var(name)} = Json.fromJson[${noOptParamType(body)}](request.body.asJson.get).get"
-          Some(name -> tree)
-        case _ =>
-          None
-      }
-      .toMap
+  def generateStatementFromBodyParameter(param: Term.Param): Stat = {
+    q"val ${Pat.Var(Term.Name(param.name.value))} = Json.fromJson[${param.decltpe.get}](request.body.asJson.get).get"
+  }
 }
 
 class DefaultAsyncServerGenerator extends DefaultServerGenerator {
@@ -208,27 +196,28 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
     super.generateImports(packageName, codeProvidedPackage, serviceName) :+
       q"import play.api.libs.concurrent.Execution.Implicits._"
 
-  override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Stat = {
-    val bodyParams = getParamsFromBody(params)
-
+  override def genControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
+    val bodyParams = parametersToBodyParams(params)
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
-    val methodParams = getMethodParams(params)
+    val methodParams = parametersToMethodParams(params)
 
-    val tree: Stat =
-      q"""
-          def ${Term.Name(methodName)}(..${methodParams.values.toList}) = {
-            Action.async(request =>
-              {
-                ..${bodyParams.values.toList}
-                service.${Term.Name(methodName)}(..${(methodParams ++ bodyParams).keys.toList}).map(answer => ${resType._2.map { typ => q"${Term.Name(resType._1)}(Json.toJson[$typ](answer))"}.getOrElse(Term.Name(resType._1))})
-              }.recoverWith {
-                case err: Throwable => service.onError(${Lit.String(methodName)}, err).map(errAnswer => BadRequest(errAnswer))
-              }
-            )
-          }
-       """
+    val paramNames = getParamsNames(methodParams ++ bodyParams)
 
-    tree
+    val methodTerm = Term.Name(methodName)
+    val methodLiteral = Lit.String(methodName)
+
+    q"""
+        def $methodTerm(..$methodParams) = {
+          Action.async(request =>
+            {
+              ..${bodyParams.map(generateStatementFromBodyParameter)}
+              service.$methodTerm(..$paramNames).map(answer => ${resType._2.map { typ => q"${resType._1}(Json.toJson[$typ](answer))"}.getOrElse(resType._1)})
+            }.recoverWith {
+              case err: Throwable => service.onError($methodLiteral, err).map(errAnswer => BadRequest(errAnswer))
+            }
+          )
+        }
+     """
   }
 }

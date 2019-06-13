@@ -142,13 +142,17 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     val imports = generateImports(packageName, codeProvidedPackage, serviceName)
 
-    val tree = List(
-      q"""class ${Type.Name(controllerName)} @Inject() (${Term.Param(List(), q"service", Some(Type.Name(serviceName)), None)}) {
-            ..${completePaths.flatMap(composeController)}
-          }
-       """)
+    val tree = List(generateControllerClass(Type.Name(controllerName), Type.Name(serviceName), completePaths.flatMap(composeController)))
 
     Seq(SyntaxCode(controllerName + ".scala", getPackageTerm(controllerPackageName), imports, tree))
+  }
+
+  def generateControllerClass(controllerType: Type.Name, serviceType: Type.Name, methods: List[Stat]): Stat = {
+    q"""class $controllerType @Inject() (${Term.Param(List(), q"service", Some(serviceType), None)}, cc: ControllerComponents)
+            extends AbstractController(cc) {
+            ..$methods
+          }
+     """
   }
 
   def genControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
@@ -194,7 +198,7 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
 
   override def generateImports(packageName: String, codeProvidedPackage: String, serviceName: String): List[Import] =
     super.generateImports(packageName, codeProvidedPackage, serviceName) :+
-      q"import play.api.libs.concurrent.Execution.Implicits._"
+      q"import scala.concurrent.ExecutionContext"
 
   override def genControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
     val bodyParams = parametersToBodyParams(params)
@@ -218,6 +222,14 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
             }
           )
         }
+     """
+  }
+
+  override def generateControllerClass(controllerType: Type.Name, serviceType: Type.Name, methods: List[Stat]): Stat = {
+    q"""class $controllerType @Inject() (${Term.Param(List(), q"service", Some(serviceType), None)}, cc: ControllerComponents)
+          (implicit ec: ExecutionContext) extends AbstractController(cc) {
+            ..$methods
+          }
      """
   }
 }

@@ -54,13 +54,15 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
 
           val readsName = Pat.Var(Term.Name(s"${name}Reads"))
           val readsParams = params.map { param =>
-            val mtd = Term.Name(if (isOption(param.decltpe.get)) "asOpt" else "as")
-            q"""(json \ ${Lit.String(param.name.value)}).$mtd[${getOptionalType(param.decltpe.get)}]"""
+            val mtd = Term.Name(if (isOption(param.decltpe.get)) "validateOpt" else "validate")
+            enumerator"""${Pat.Var(Term.Name(param.name.value))} <- (json \ ${Lit.String(param.name.value)}).$mtd[${getOptionalType(param.decltpe.get)}]"""
           }
 
           val readsStat =
             q"""implicit lazy val $readsName: Reads[$typeName] = Reads[$typeName] {
-                  json => JsSuccess(${Term.Name(name)}(..$readsParams))
+                  json => for {
+                     ..$readsParams
+                  } yield ${Term.Name(name)}(..${getParamsNames(params)})
                 }
              """
 

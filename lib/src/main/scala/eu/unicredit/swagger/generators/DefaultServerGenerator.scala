@@ -136,7 +136,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
             throw new Exception(s"cannot determine Ok result type for $methodName")
           }
 
-        genControllerMethod(methodName, op.getParameters.asScala.toList, okRespType)
+        generateControllerMethod(methodName, op.getParameters.asScala.toList, okRespType)
       }
     }
 
@@ -155,7 +155,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
      """
   }
 
-  def genControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
+  def generateControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
     val bodyParams = parametersToBodyParams(params)
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
@@ -200,7 +200,7 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
     super.generateImports(packageName, codeProvidedPackage, serviceName) :+
       q"import scala.concurrent.ExecutionContext"
 
-  override def genControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
+  override def generateControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
     val bodyParams = parametersToBodyParams(params)
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 

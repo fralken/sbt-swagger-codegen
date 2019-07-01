@@ -7,13 +7,15 @@ Moreover, you can do it directly within an `sbt` project.
 
 ## Compatibility
 
-This code generator is designed specifically for Swagger Spec Version 2.0. Moreover, it relies on [Play! Framework](http://www.playframework.com/) 2.6 for Json marshalling/unmarshalling, server- and client-side code.
+This code generator is designed specifically for Swagger Spec Version 2.0. Moreover, it relies on [Play! Framework](http://www.playframework.com/) 2.7 for Json marshalling/unmarshalling, server- and client-side code.
 
 ## Install
 
+First clone this project and `publishLocal` it.
+
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.11")`
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.12-SNAPSHOT")`
 
 Enable it in your `build.sbt` like this:
 

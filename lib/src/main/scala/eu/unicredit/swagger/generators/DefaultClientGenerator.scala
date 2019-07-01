@@ -14,7 +14,6 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.UrlGenerator._
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
@@ -72,9 +71,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
             throw new Exception(s"cannot determine Ok result type for $methodName")
           }
 
-        val url = generateUrl(basePath, p)
-
-        genClientMethod(methodName, url, verb, op.getParameters.asScala.toList, reesponseType)
+        genClientMethod(methodName, basePath + p, verb, op.getParameters.asScala.toList, reesponseType)
       }
     }
 
@@ -117,10 +114,6 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       q"${Lit.String(param.name.value)} -> ${param.decltpe.map(t => if (!isOption(t)) q"Some($name)" else name).getOrElse(name)}"
     }
 
-    def generateInterpolator(prefix: String, url: String): Term.Interpolate = {
-      s"""$prefix"$url"""".parse[Term].get.asInstanceOf[Term.Interpolate]
-    }
-
     val bodyParams = parametersToBodyParams(params)
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
@@ -133,9 +126,9 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val baseUrl =
       if (queryTerms.isEmpty)
-        q"${generateInterpolator("s", s"$$baseUrl$url")}"
+        q"${termInterpolateUrl("s", s"{baseUrl}$url")}"
       else
-        q"${generateInterpolator("s", s"$$baseUrl$url")} + renderUrlParams(..$queryTerms)"
+        q"${termInterpolateUrl("s", s"{baseUrl}$url")} + renderUrlParams(..$queryTerms)"
 
     val wsUrl =
       if (headerTerms.isEmpty)

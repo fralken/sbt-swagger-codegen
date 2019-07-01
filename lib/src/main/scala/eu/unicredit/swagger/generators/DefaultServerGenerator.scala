@@ -16,7 +16,6 @@ package eu.unicredit.swagger.generators
 
 import java.io.File
 
-import eu.unicredit.swagger.UrlGenerator._
 import io.swagger.parser.SwaggerParser
 import io.swagger.models._
 import io.swagger.models.parameters._
@@ -74,10 +73,6 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     def composeRoutes(p: String): List[Case] = {
       def sanitizeParamName(name: String) = name.replaceAll("-", "_")
 
-      def generateInterpolator(prefix: String, url: String): Pat.Interpolate = {
-        s"""$prefix"$url"""".parse[Pat].get.asInstanceOf[Pat.Interpolate]
-      }
-
       def castParam(param: Term.Param) = {
         def getInnerType(tpe: Type ): Type = {
           tpe match {
@@ -124,8 +119,6 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         (verb, op) <- ops
       } yield {
 
-        val url = generateUrl(basePath, p)
-
         try if (!op.getProduces.asScala.forall(_ == "application/json"))
           println("WARNING - only 'application/json' is supported")
         catch {
@@ -156,10 +149,10 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
               else if (isOption(paramType)) { "q_?" }
               else { "q" }
 
-            generateInterpolator(prefix, s"${queryParam.name.value}=$${${castParam(queryParam)}}")
+            Pat.Interpolate(Term.Name(prefix), List(Lit.String(s"${queryParam.name.value}="), Lit.String("")), List(castParam(queryParam)))
           }
 
-        val pathParams = castedPathParams(generateInterpolator("p", url), parametersToPathParams(parameters))
+        val pathParams = castedPathParams(patternInterpolateUrl("p", basePath + p), parametersToPathParams(parameters))
 
         val params = if (queryParams.isEmpty) {
           pathParams

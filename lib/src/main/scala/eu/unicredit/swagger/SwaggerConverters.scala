@@ -23,33 +23,46 @@ import scala.meta._
 
 trait SwaggerConverters {
 
-  def isOption(thisType: Type): Boolean = {
+  private def parseUrl(url: String) = {
+    val regex = "([^{]*)(?:\\{([^}]+)\\})?".r
+    val (p, a) = regex.findAllMatchIn(url).foldLeft((Vector[String](), Vector[String]())){(l, m) =>
+      val (parts, args) = l
+      (parts :+ m.group(1), Option(m.group(2)).map(args :+ _).getOrElse(args))
+    }
+    (p.take(a.size + 1).toList, a.toList)
+  }
+
+  def patternInterpolateUrl(prefix: String, url: String): Pat.Interpolate = {
+    val (parts, args) = parseUrl(url)
+    Pat.Interpolate(Term.Name(prefix), parts.map(p => Lit.String(p)), args.map(a => Pat.Var(Term.Name(a))))
+  }
+
+  def termInterpolateUrl(prefix: String, url: String): Term.Interpolate = {
+    val (parts, args) = parseUrl(url)
+    Term.Interpolate(Term.Name(prefix), parts.map(p => Lit.String(p)), args.map(a => Term.Name(a)))
+  }
+
+  def isType(what: String, thisType: Type): Boolean = {
     thisType match {
-      case Type.Apply(name, _) => name.syntax == "Option"
+      case Type.Apply(name, _) => name.syntax == what
       case _ => false
     }
   }
 
-  def getTypeInOption(thisType: Type): Type = {
+  def getTypeIn(what: String, thisType: Type): Type = {
     thisType match {
-      case Type.Apply(name, args) if name.syntax == "Option" => args.head
+      case Type.Apply(name, args) if name.syntax == what => args.head
       case _ => thisType
     }
   }
 
-  def isSeq(thisType: Type): Boolean = {
-    thisType match {
-      case Type.Apply(name, _) => name.syntax == "Seq"
-      case _ => false
-    }
-  }
+  def isOption(thisType: Type): Boolean = isType("Option", thisType)
 
-  def getTypeInSeq(thisType: Type): Type = {
-    thisType match {
-      case Type.Apply(name, args) if name.syntax == "Seq" => args.head
-      case _ => thisType
-    }
-  }
+  def getTypeInOption(thisType: Type): Type = getTypeIn("Option", thisType)
+
+  def isSeq(thisType: Type): Boolean = isType("Seq", thisType)
+
+  def getTypeInSeq(thisType: Type): Type = getTypeIn("Seq", thisType)
 
   private def propertyToType(p: Property): Type = {
     if (!p.getRequired)

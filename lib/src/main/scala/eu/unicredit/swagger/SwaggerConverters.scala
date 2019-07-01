@@ -23,6 +23,34 @@ import scala.meta._
 
 trait SwaggerConverters {
 
+  def isOption(thisType: Type): Boolean = {
+    thisType match {
+      case Type.Apply(name, _) => name.syntax == "Option"
+      case _ => false
+    }
+  }
+
+  def getTypeInOption(thisType: Type): Type = {
+    thisType match {
+      case Type.Apply(name, args) if name.syntax == "Option" => args.head
+      case _ => thisType
+    }
+  }
+
+  def isSeq(thisType: Type): Boolean = {
+    thisType match {
+      case Type.Apply(name, _) => name.syntax == "Seq"
+      case _ => false
+    }
+  }
+
+  def getTypeInSeq(thisType: Type): Type = {
+    thisType match {
+      case Type.Apply(name, args) if name.syntax == "Seq" => args.head
+      case _ => thisType
+    }
+  }
+
   private def propertyToType(p: Property): Type = {
     if (!p.getRequired)
       t"Option[${propertyToTypeNotOptional(p)}]"
@@ -40,7 +68,7 @@ trait SwaggerConverters {
       case _: LongProperty => t"Long"
       case _: BaseIntegerProperty => t"Int"
       case m: MapProperty => t"Map[String, ${propertyToTypeNotOptional(m.getAdditionalProperties)}]"
-      case a: ArrayProperty => t"List[${propertyToTypeNotOptional(a.getItems)}]"
+      case a: ArrayProperty => t"Seq[${propertyToTypeNotOptional(a.getItems)}]"
       case _: DecimalProperty => t"BigDecimal"
       case r: RefProperty => Type.Name(r.getSimpleRef.capitalize)
       case _: DateProperty => t"java.time.LocalDate"
@@ -72,7 +100,7 @@ trait SwaggerConverters {
     p match {
       case asp: AbstractSerializableParameter[_] =>
         if (asp.getType == "array")
-          t"List[${propertyToTypeNotOptional(asp.getItems)}]"
+          t"Seq[${propertyToTypeNotOptional(asp.getItems)}]"
         else
           propertyToTypeNotOptional(PropertyBuilder.build(asp.getType, asp.getFormat, null))
       case bp: BodyParameter =>
@@ -82,31 +110,30 @@ trait SwaggerConverters {
     }
   }
 
-  def parametersToMethodParams(params: List[Parameter]): List[Term.Param] =
-    params
-      .filter {
-        case _: PathParameter => true
-        case _: QueryParameter => true
-        case _: HeaderParameter => true
-        case _: BodyParameter => false
-        case x =>
-          println(s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD")
-          false
-      }
-      .sortBy { //the order must be verified...
-        case _: HeaderParameter => 1
-        case _: PathParameter => 2
-        case _: QueryParameter => 3
-        // other subtypes have been removed already
-      }
-      .map { p =>
-        Term.Param(List.empty, Name(p.getName), Some(parameterToType(p)), None)
-      }
-
   def parametersToBodyParams(params: List[Parameter]): List[Term.Param] =
     params.collect {
       case p: BodyParameter =>
         Term.Param(List.empty, Name(p.getName), Some(parameterToType(p)), None)
+    }
+
+  def parametersToHeaderParams(params: List[Parameter]): List[Term.Param] =
+    params.collect {
+      case p: HeaderParameter =>
+        Term.Param(List.empty, Name(p.getName), Some(parameterToType(p)), None)
+    }
+
+  def parametersToPathParams(params: List[Parameter]): List[Term.Param] =
+    params.collect {
+      case p: PathParameter =>
+        Term.Param(List.empty, Name(p.getName), Some(parameterToType(p)), None)
+    }
+
+  def parametersToQueryParams(params: List[Parameter]): List[Term.Param] =
+    params.collect {
+      case p: QueryParameter =>
+        val tpe = parameterToType(p)
+        val realTpe = if (isSeq(getTypeInOption(tpe))) getTypeInOption(tpe) else tpe
+        Term.Param(List.empty, Name(p.getName), Some(realTpe), None)
     }
 
   def propertiesToParams(properties: java.util.Map[String, Property]): Option[List[Term.Param]] = {
@@ -119,7 +146,7 @@ trait SwaggerConverters {
       }.toList)
   }
 
-  def getParamsNames(params: List[Term.Param]): List[Term] = params.map(p => Term.Name(p.name.value))
+  def getParamsNames(params: List[Term.Param]): List[Term.Name] = params.map(p => Term.Name(p.name.value))
 
   def getResponseType(response: Response): Option[Type] = {
     Option(response.getSchema).map(propertyToTypeNotOptional)

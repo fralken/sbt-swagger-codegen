@@ -44,8 +44,6 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val basePath = Option(swagger.getBasePath).getOrElse("/")
 
-    val clientPackageName = packageName + ".client"
-
     val clientName = clientNameFromFileName(fileName)
 
     val clientConfigType = Type.Name(s"${clientName}Config")
@@ -90,7 +88,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
             private def renderUrlParams(pairs: (String, Option[Any])*) = {
               val parts = pairs.collect({
-                 case (k, Some(v)) => k + "=" + v
+                case (k, Some(l: Iterable[_])) => l.map(v => k + "=" + v).mkString("&")
+                case (k, Some(v)) => k + "=" + v
               })
               if (parts.nonEmpty) parts.mkString("?", "&", "") else ""
             }
@@ -105,7 +104,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
           }
        """)
 
-    Seq(SyntaxCode(clientName + ".scala", getPackageTerm(clientPackageName), generateImports(packageName), tree))
+    Seq(SyntaxCode(clientName + ".scala", getPackageTerm(packageName), generateImports(packageName), tree))
   }
 
   def genClientMethod(methodName: String,
@@ -113,37 +112,36 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
                       opType: String,
                       params: List[Parameter],
                       responseType: (Term, Option[Type])): Stat = {
+    def generateStatementFromParam(param: Term.Param): Term = {
+      val name = Term.Name(param.name.value)
+      q"${Lit.String(param.name.value)} -> ${param.decltpe.map(t => if (!isOption(t)) q"Some($name)" else name).getOrElse(name)}"
+    }
+
+    def generateInterpolator(prefix: String, url: String): Term.Interpolate = {
+      s"""$prefix"$url"""".parse[Term].get.asInstanceOf[Term.Interpolate]
+    }
+
     val bodyParams = parametersToBodyParams(params)
     if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
 
-    val methodParams = parametersToMethodParams(params)
+    val headerParams = parametersToHeaderParams(params)
+    val queryParams = parametersToQueryParams(params)
+    val methodParams = headerParams ++ parametersToPathParams(params) ++ queryParams
 
-    //probably to be fixed with a custom ordering
-    val urlParams: List[Term] =
-      params collect {
-        case query: QueryParameter =>
-          val name = Term.Name(query.getName)
-          q"${Lit.String(query.getName)} -> ${if (query.getRequired) q"Some($name)" else name}"
-      }
-
-    val headerParams: List[Term] =
-      params collect {
-        case header: HeaderParameter =>
-          val name = Term.Name(header.getName)
-          q"${Lit.String(header.getName)} -> ${if (header.getRequired) q"Some($name)" else name}"
-      }
+    val queryTerms = queryParams.map(generateStatementFromParam)
+    val headerTerms = headerParams.map(generateStatementFromParam)
 
     val baseUrl =
-      if (urlParams.isEmpty)
-        q"""s"$$baseUrl/""""
+      if (queryTerms.isEmpty)
+        q"${generateInterpolator("s", s"$$baseUrl$url")}"
       else
-        q"""s"$$baseUrl/$${renderUrlParams(..$urlParams)}""""
+        q"${generateInterpolator("s", s"$$baseUrl$url")} + renderUrlParams(..$queryTerms)"
 
     val wsUrl =
-      if (headerParams.isEmpty)
+      if (headerTerms.isEmpty)
         q"ws.url($baseUrl)"
       else
-        q"ws.url($baseUrl).addHttpHeaders(renderHeaderParams(..$headerParams): _*)"
+        q"ws.url($baseUrl).addHttpHeaders(renderHeaderParams(..$headerTerms): _*)"
 
     q"""def ${Term.Name(methodName)}(..${methodParams ++ bodyParams}) = {
           $wsUrl.${Term.Name(opType)}(..${getParamsNames(bodyParams).map(name => q"Json.toJson($name)")}).map { resp =>

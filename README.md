@@ -36,14 +36,9 @@ All available tasks from the plugin
 - `swaggerModelCodeGen`  -> generated code for model classes
 - `swaggerServerCodeGen` -> generates Play Framework code
 - `swaggerClientCodeGen` -> generates client code using `play-ws`
-- `swaggerRoutesCodeGen` -> generates Play Framework routes
 - `swaggerClean` -> cleans up already generated code
 
 The `swaggerModelCodeGen`, `swaggerServerCodeGen` and `swaggerClientCodeGen` will run automatically when the swagger sources change.
-
-`swaggerRoutesCodeGen` will _not_ run automatically because it generates code inside the "src/main/resources" directory instead of in "target/scala-2.12/src_managed".
-
-Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerRoutesCodeGen```)
 
 ## Keys (and defaults)
 
@@ -59,7 +54,6 @@ These keys determine where generated files will be put:
 - `swaggerModelCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/model" (path where to put generated model files)
 - `swaggerClientCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/client" (path where to put generated client code files)
 - `swaggerServerCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/server" (path where to put generated server code files)
-- `swaggerServerRoutesFile` -> "src/main/resources/routes" (routes file to be generated)
 
 These keys can be used to determine what kind of code should be generated:
 

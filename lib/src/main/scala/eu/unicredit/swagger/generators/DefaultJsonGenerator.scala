@@ -22,20 +22,6 @@ import scala.collection.JavaConverters._
 
 class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
 
-  def isOption(thisType: Type): Boolean = {
-    thisType match {
-      case Type.Apply(name, _) => name.syntax == "Option"
-      case _ => false
-    }
-  }
-
-  def getOptionalType(thisType: Type): Type = {
-    thisType match {
-      case Type.Apply(name, args) if name.syntax == "Option" => args.head
-      case _ => thisType
-    }
-  }
-
   def generateImports(): List[Import] = {
     List(q"import play.api.libs.json._")
   }
@@ -55,7 +41,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
           val readsName = Pat.Var(Term.Name(s"${name}Reads"))
           val readsParams = params.map { param =>
             val mtd = Term.Name(if (isOption(param.decltpe.get)) "validateOpt" else "validate")
-            enumerator"""${Pat.Var(Term.Name(param.name.value))} <- (json \ ${Lit.String(param.name.value)}).$mtd[${getOptionalType(param.decltpe.get)}]"""
+            enumerator"""${Pat.Var(Term.Name(param.name.value))} <- (json \ ${Lit.String(param.name.value)}).$mtd[${getTypeInOption(param.decltpe.get)}]"""
           }
 
           val readsStat =

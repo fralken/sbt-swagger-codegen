@@ -25,7 +25,7 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConverters {
   def generateStatement(name: String, parameters: Option[List[Term.Param]], comments: Option[String]): Stat = {
     parameters match {
       case None => q"case object ${Term.Name(name)}"
-      case Some(params) =>  q"case class ${Type.Name(name)} (..$params)"
+      case Some(params) => q"case class ${Type.Name(name)} (..$params)"
     }
   }
 

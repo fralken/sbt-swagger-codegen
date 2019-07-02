@@ -15,7 +15,6 @@
 package eu.unicredit.swagger.generators
 
 import io.swagger.parser.SwaggerParser
-import io.swagger.models._
 import io.swagger.models.parameters._
 
 import scala.collection.JavaConverters._
@@ -53,14 +52,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       val path = swagger.getPath(p)
       if (path == null) return List.empty
 
-      val ops: List[(String, Operation)] =
-        List(Option(path.getDelete) map ("delete" -> _),
-            Option(path.getGet) map ("get" -> _),
-            Option(path.getPost) map ("post" -> _),
-            Option(path.getPut) map ("put" -> _)).flatten
-
       for {
-        (verb, op) <- ops
+        (verb, op) <- getOperations(path)
       } yield {
         val methodName =
           if (op.getOperationId != null) op.getOperationId
@@ -106,7 +99,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
   def genClientMethod(methodName: String,
                       url: String,
-                      opType: String,
+                      verb: String,
                       params: List[Parameter],
                       responseType: (Term, Option[Type])): Stat = {
     def generateStatementFromParam(param: Term.Param): Term = {
@@ -115,7 +108,10 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     }
 
     val bodyParams = parametersToBodyParams(params)
-    if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
+    if (bodyParams.size > 1)
+      throw new Exception(s"Only one parameter in body is allowed in method $methodName")
+    if ((verb == "PUT" || verb == "POST") && bodyParams.size < 1)
+      throw new Exception(s"One parameter in body is required for $verb in method $methodName")
 
     val headerParams = parametersToHeaderParams(params)
     val queryParams = parametersToQueryParams(params)
@@ -137,7 +133,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
         q"ws.url($baseUrl).addHttpHeaders(renderHeaderParams(..$headerTerms): _*)"
 
     q"""def ${Term.Name(methodName)}(..${methodParams ++ bodyParams}) = {
-          $wsUrl.${Term.Name(opType)}(..${getParamsNames(bodyParams).map(name => q"Json.toJson($name)")}).map { resp =>
+          $wsUrl.${Term.Name(verb.toLowerCase)}(..${getParamsNames(bodyParams).map(name => q"Json.toJson($name)")}).map { resp =>
             if ((resp.status >= 200) && (resp.status <= 299))
               ${responseType._2.map(typ => q"Json.parse(resp.body).as[$typ]").getOrElse(q"Unit")}
             else

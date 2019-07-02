@@ -33,6 +33,15 @@ trait SharedServerClientCode extends SwaggerConverters {
       .capitalize + obj
   }
 
+  def getOperations(path: Path): List[(String, Operation)] = {
+    List(
+      Option(path.getDelete) map ("DELETE" -> _),
+      Option(path.getGet) map ("GET" -> _),
+      Option(path.getPost) map ("POST" -> _),
+      Option(path.getPut) map ("PUT" -> _)
+    ).flatten
+  }
+
   def getResponseResultsAndTypes(op: Operation): Option[(Term, Option[Type])] =
     respTypeMap.flatMap {
       case (k, v) =>

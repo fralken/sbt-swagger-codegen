@@ -206,13 +206,13 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         try {
-          Some(fName -> modelGenerator.generate(fPath, codegenPackage))
+          fName -> modelGenerator.generate(fPath, codegenPackage)
         } catch {
           case e: Exception =>
-            logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            None
+            logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
+            throw new Exception(e.getMessage)
         }
-      }).flatten.toMap
+      }).toMap
 
     val destDir = packageDir(targetDir, codegenPackage)
 
@@ -253,8 +253,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
             jsonGenerator.generate(fPath, codegenPackage).toList
           } catch {
             case e: Exception =>
-              logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-              List.empty
+              logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
+              throw new Exception(e.getMessage)
           }
         }).flatten
 
@@ -287,8 +287,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
         } catch {
           case e: Exception =>
-            logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            Iterable.empty
+            logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
+            throw new Exception(e.getMessage)
         }
 
       }).flatten
@@ -321,8 +321,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           clientGenerator.generate(fPath, codegenPackage)
         } catch {
           case e: Exception =>
-            logger.warn(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            Iterable.empty
+            logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
+            throw new Exception(e.getMessage)
         }
       }).flatten
 

@@ -17,8 +17,6 @@ package eu.unicredit.swagger.generators
 import java.io.File
 
 import io.swagger.parser.SwaggerParser
-import io.swagger.models._
-import io.swagger.models.parameters._
 
 import scala.collection.JavaConverters._
 import scala.meta._
@@ -109,14 +107,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       val path = swagger.getPath(p)
       if (path == null) return List()
 
-      val ops: List[(String, Operation)] =
-        Seq(Option(path.getDelete) map ("DELETE" -> _),
-          Option(path.getGet) map ("GET" -> _),
-          Option(path.getPost) map ("POST" -> _),
-          Option(path.getPut) map ("PUT" -> _)).flatten.toList
-
       for {
-        (verb, op) <- ops
+        (verb, op) <- getOperations(path)
       } yield {
 
         try if (!op.getProduces.asScala.forall(_ == "application/json"))
@@ -128,11 +120,6 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         val methodName =
           if (op.getOperationId != null) op.getOperationId
           else throw new Exception("Please provide an operationId in: " + p)
-
-        val okRespType: (Term, Option[Type]) =
-          getResponseResultsAndTypes(op) getOrElse {
-            throw new Exception(s"cannot determine Ok result type for $methodName")
-          }
 
         val parameters = op.getParameters.asScala.toList
 
@@ -193,11 +180,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       val path = swagger.getPath(p)
       if (path == null) return List()
 
-      val ops: List[Operation] =
-        List(Option(path.getDelete), Option(path.getGet), Option(path.getPost), Option(path.getPut)).flatten
-
       for {
-        op <- ops
+        (verb, op) <- getOperations(path)
       } yield {
 
         try if (!op.getProduces.asScala.forall(_ == "application/json"))
@@ -215,7 +199,19 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
             throw new Exception(s"cannot determine Ok result type for $methodName")
           }
 
-        generateControllerMethod(methodName, op.getParameters.asScala.toList, okRespType)
+        val params = op.getParameters.asScala.toList
+
+        val bodyParams = parametersToBodyParams(params)
+        if (bodyParams.size > 1)
+          throw new Exception(s"Only one parameter in body is allowed in method $methodName")
+        if ((verb == "PUT" || verb == "POST") && bodyParams.size < 1)
+          throw new Exception(s"One parameter in body is required for $verb in method $methodName")
+
+        val headerParams = parametersToHeaderParams(params)
+
+        val methodParams = parametersToPathParams(params) ++ parametersToQueryParams(params)
+
+        generateControllerMethod(methodName, methodParams, headerParams, bodyParams, okRespType)
       }
     }
 
@@ -234,14 +230,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
      """
   }
 
-  def generateControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
-    val bodyParams = parametersToBodyParams(params)
-    if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
-
-    val headerParams = parametersToHeaderParams(params)
-
-    val methodParams = parametersToPathParams(params) ++ parametersToQueryParams(params)
-
+  def generateControllerMethod(methodName: String, methodParams: List[Term.Param], headerParams: List[Term.Param], bodyParams: List[Term.Param], resType: (Term, Option[Type])): Stat = {
     val paramNames = getParamsNames(headerParams ++ methodParams ++ bodyParams)
 
     val methodTerm = Term.Name(methodName)
@@ -292,14 +281,7 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
     super.generateControllerImports(packageName, codeProvidedPackage, serviceName) :+
       q"import scala.concurrent.ExecutionContext"
 
-  override def generateControllerMethod(methodName: String, params: List[Parameter], resType: (Term, Option[Type])): Stat = {
-    val bodyParams = parametersToBodyParams(params)
-    if (bodyParams.size > 1) throw new Exception(s"Only one parameter in body is allowed in method $methodName")
-
-    val headerParams = parametersToHeaderParams(params)
-
-    val methodParams = parametersToPathParams(params) ++ parametersToQueryParams(params)
-
+  override def generateControllerMethod(methodName: String, methodParams: List[Term.Param], headerParams: List[Term.Param], bodyParams: List[Term.Param], resType: (Term, Option[Type])): Stat = {
     val paramNames = getParamsNames(headerParams ++ methodParams ++ bodyParams)
 
     val methodTerm = Term.Name(methodName)

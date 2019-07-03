@@ -210,7 +210,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         } catch {
           case e: Exception =>
             logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            throw new Exception(e.getMessage)
+            throw e
         }
       }).toMap
 
@@ -254,7 +254,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           } catch {
             case e: Exception =>
               logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-              throw new Exception(e.getMessage)
+              throw e
           }
         }).flatten
 
@@ -288,7 +288,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         } catch {
           case e: Exception =>
             logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            throw new Exception(e.getMessage)
+            throw e
         }
 
       }).flatten
@@ -322,7 +322,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         } catch {
           case e: Exception =>
             logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            throw new Exception(e.getMessage)
+            throw e
         }
       }).flatten
 

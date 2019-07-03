@@ -15,9 +15,10 @@
 package eu.unicredit.swagger.generators
 
 import eu.unicredit.swagger.SwaggerConverters
+import io.swagger.models.Swagger
 import io.swagger.parser.SwaggerParser
-import scala.meta._
 
+import scala.meta._
 import scala.collection.JavaConverters._
 
 class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
@@ -26,9 +27,7 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
     List(q"import play.api.libs.json._")
   }
 
-  def generateStatements(fileName: String): List[Stat] = {
-    val swagger = new SwaggerParser().read(fileName)
-
+  def generateStatements(swagger: Swagger): List[Stat] = {
     val models = swagger.getDefinitions.asScala
 
     models.flatMap { case (originalName, model) =>
@@ -69,8 +68,13 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
   }
 
   def generate(fileName: String, destPackage: String): Iterable[SyntaxCode] = {
-    val imports = generateImports()
-    val pkgObj = q"package object json { ..${generateStatements(fileName)} }"
-    Seq(SyntaxCode("json", getPackageTerm(destPackage), imports, List(pkgObj)))
+    val swagger = new SwaggerParser().read(fileName)
+    Option(swagger.getPaths) match {
+      case Some(_) =>
+        val imports = generateImports()
+        val pkgObj = q"package object json { ..${generateStatements(swagger)} }"
+        Seq(SyntaxCode("json", getPackageTerm(destPackage), imports, List(pkgObj)))
+      case None => Iterable.empty
+    }
   }
 }

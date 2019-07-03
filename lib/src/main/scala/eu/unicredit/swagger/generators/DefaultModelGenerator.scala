@@ -36,17 +36,21 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConverters {
   def generate(fileName: String, destPackage: String): Iterable[SyntaxCode] = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val models = swagger.getDefinitions.asScala
+    Option(swagger.getPaths) match {
+      case Some(_) =>
+        val models = swagger.getDefinitions.asScala
 
-    val pkg = getPackageTerm(destPackage)
-    val imports = generateImports()
+        val pkg = getPackageTerm(destPackage)
+        val imports = generateImports()
 
-    for {
-      (name, model) <- models
-    } yield
-      SyntaxCode(name + ".scala",
-        pkg,
-        imports,
-        List(generateStatement(name.capitalize, propertiesToParams(model.getProperties), Option(model.getDescription))))
+        for {
+          (name, model) <- models
+        } yield
+          SyntaxCode(name + ".scala",
+            pkg,
+            imports,
+            List(generateStatement(name.capitalize, propertiesToParams(model.getProperties), Option(model.getDescription))))
+      case None => Iterable.empty
+    }
   }
 }

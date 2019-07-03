@@ -16,6 +16,7 @@ package eu.unicredit.swagger.generators
 
 import java.io.File
 
+import io.swagger.models.Path
 import io.swagger.parser.SwaggerParser
 
 import scala.collection.JavaConverters._
@@ -23,16 +24,16 @@ import scala.meta._
 
 class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode {
 
-  def controllerNameFromFileName(fn: String) =
+  def controllerNameFromFileName(fn: String): String =
     objectNameFromFileName(fn, "Controller")
 
-  def routerNameFromFileName(fn: String) =
+  def routerNameFromFileName(fn: String): String =
     objectNameFromFileName(fn, "Router")
 
-  def serviceNameFromFileName(fn: String) =
+  def serviceNameFromFileName(fn: String): String =
     objectNameFromFileName(fn, "Service")
 
-  def fileNameWithoutPath(fn: String) = new File(fn).getName
+  def fileNameWithoutPath(fn: String): String = new File(fn).getName
 
   def generateControllerImports(packageName: String, codeProvidedPackage: String, serviceName: String): List[Import] = {
     List(
@@ -66,9 +67,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     val basePath = Option(swagger.getBasePath).getOrElse("/")
 
-    val completePaths = swagger.getPaths.asScala.keySet.toList
-
-    def composeRoutes(p: String): List[Case] = {
+    def composeRoutes(pathEntry: (String, Path)): List[Case] = {
       def sanitizeParamName(name: String) = name.replaceAll("-", "_")
 
       def castParam(param: Term.Param) = {
@@ -104,8 +103,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         pat.copy(args = castedParams)
       }
 
-      val path = swagger.getPath(p)
-      if (path == null) return List()
+      val (p, path) = pathEntry
 
       for {
         (verb, op) <- getOperations(path)
@@ -153,18 +151,22 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       }
     }
 
-    val imports = generateRouterImports(packageName)
+    Option(swagger.getPaths) match {
+      case Some(paths) =>
+        val imports = generateRouterImports(packageName)
 
-    val tree = List(
-      q"""class ${Type.Name(routerName)} @Inject()(controller: ${Type.Name(controllerName)}) extends SimpleRouter {
-            override def routes: Routes = {
-              ..case ${completePaths.flatMap(composeRoutes)}
-            }
-          }
-       """
-    )
+        val tree = List(
+          q"""class ${Type.Name(routerName)} @Inject()(controller: ${Type.Name(controllerName)}) extends SimpleRouter {
+                override def routes: Routes = {
+                  ..case ${paths.asScala.toList.flatMap(composeRoutes)}
+                }
+              }
+           """
+        )
 
-    Seq(SyntaxCode(routerName + ".scala", getPackageTerm(packageName), imports, tree))
+        Seq(SyntaxCode(routerName + ".scala", getPackageTerm(packageName), imports, tree))
+      case None => Iterable.empty
+    }
   }
 
   def generateController(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxCode] = {
@@ -174,11 +176,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     val serviceName = serviceNameFromFileName(fileName)
 
-    val completePaths = swagger.getPaths.asScala.keySet.toList
-
-    def composeController(p: String): List[Stat] = {
-      val path = swagger.getPath(p)
-      if (path == null) return List()
+    def composeController(pathEntry: (String, Path)): List[Stat] = {
+      val (p, path) = pathEntry
 
       for {
         (verb, op) <- getOperations(path)
@@ -215,11 +214,15 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       }
     }
 
-    val imports = generateControllerImports(packageName, codeProvidedPackage, serviceName)
+    Option(swagger.getPaths) match {
+      case Some(paths) =>
+        val imports = generateControllerImports(packageName, codeProvidedPackage, serviceName)
 
-    val tree = List(generateControllerClass(Type.Name(controllerName), Type.Name(serviceName), completePaths.flatMap(composeController)))
+        val tree = List(generateControllerClass(Type.Name(controllerName), Type.Name(serviceName), paths.asScala.toList.flatMap(composeController)))
 
-    Seq(SyntaxCode(controllerName + ".scala", getPackageTerm(packageName), imports, tree))
+        Seq(SyntaxCode(controllerName + ".scala", getPackageTerm(packageName), imports, tree))
+      case None => Iterable.empty
+    }
   }
 
   def generateControllerClass(controllerType: Type.Name, serviceType: Type.Name, methods: List[Stat]): Stat = {

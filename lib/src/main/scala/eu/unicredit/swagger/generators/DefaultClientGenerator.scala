@@ -15,6 +15,7 @@
 package eu.unicredit.swagger.generators
 
 import io.swagger.parser.SwaggerParser
+import io.swagger.models.Path
 import io.swagger.models.parameters._
 
 import scala.collection.JavaConverters._
@@ -46,12 +47,8 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val clientConfigType = Type.Name(s"${clientName}Config")
 
-    val completePaths = swagger.getPaths.keySet().asScala.toList
-
-    def composeClient(p: String): List[Stat] = {
-      val path = swagger.getPath(p)
-      if (path == null) return List.empty
-
+    def composeClient(pathEntry: (String, Path)): List[Stat] = {
+      val (p, path) = pathEntry
       for {
         (verb, op) <- getOperations(path)
       } yield {
@@ -68,33 +65,37 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
       }
     }
 
-    val clientHttpMethods = completePaths.flatMap(composeClient)
+    Option(swagger.getPaths) match {
+      case Some(paths) =>
+        val clientHttpMethods = paths.asScala.toList.flatMap(composeClient)
 
-    val tree = List(
-      q"""case class $clientConfigType(host: String = "localhost", port: Int, ssl: Boolean = false)""",
-      q"""class ${Type.Name(clientName)} @Inject() (ws: StandaloneWSClient, clientConfig: $clientConfigType)(implicit ec: ExecutionContext) {
-            private val scheme: String = if (clientConfig.ssl) "https" else "http"
-            val baseUrl: String = s"$$scheme://$${clientConfig.host}:$${clientConfig.port}"
+        val tree = List(
+          q"""case class $clientConfigType(host: String = "localhost", port: Int, ssl: Boolean = false)""",
+          q"""class ${Type.Name(clientName)} @Inject() (ws: StandaloneWSClient, clientConfig: $clientConfigType)(implicit ec: ExecutionContext) {
+                private val scheme: String = if (clientConfig.ssl) "https" else "http"
+                val baseUrl: String = s"$$scheme://$${clientConfig.host}:$${clientConfig.port}"
 
-            private def renderUrlParams(pairs: (String, Option[Any])*) = {
-              val parts = pairs.collect({
-                case (k, Some(l: Iterable[_])) => l.map(v => k + "=" + v).mkString("&")
-                case (k, Some(v)) => k + "=" + v
-              })
-              if (parts.nonEmpty) parts.mkString("?", "&", "") else ""
-            }
+                private def renderUrlParams(pairs: (String, Option[Any])*) = {
+                  val parts = pairs.collect({
+                    case (k, Some(l: Iterable[_])) => l.map(v => k + "=" + v).mkString("&")
+                    case (k, Some(v)) => k + "=" + v
+                  })
+                  if (parts.nonEmpty) parts.mkString("?", "&", "") else ""
+                }
 
-            private def renderHeaderParams(pairs: (String, Option[Any])*) = {
-              pairs.collect({
-                case (k, Some(v)) => k -> v.toString
-              })
-            }
+                private def renderHeaderParams(pairs: (String, Option[Any])*) = {
+                  pairs.collect({
+                    case (k, Some(v)) => k -> v.toString
+                  })
+                }
 
-            ..$clientHttpMethods
-          }
-       """)
+                ..$clientHttpMethods
+              }
+           """)
 
-    Seq(SyntaxCode(clientName + ".scala", getPackageTerm(packageName), generateImports(packageName), tree))
+        Seq(SyntaxCode(clientName + ".scala", getPackageTerm(packageName), generateImports(packageName), tree))
+      case None => Iterable.empty
+    }
   }
 
   def genClientMethod(methodName: String,

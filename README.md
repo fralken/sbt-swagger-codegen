@@ -48,7 +48,7 @@ These keys influence properties of the generated code itself:
 
 - `swaggerSourcesDir` -> "/src/main/swagger" (path where to search for swagger files)
 - `swaggerCodeGenPackage` -> "swagger.codegen" (package name of the generated sources)
-- `swaggerModelFileSplitting` -> "singleFile" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
+- `swaggerModelFileSplitting` -> "oneFilePerSource" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
 - `swaggerCodeProvidedPackage` -> "com.yourcompany" (where you will provide business logic server method implementation)
 
 These keys determine where generated files will be put:

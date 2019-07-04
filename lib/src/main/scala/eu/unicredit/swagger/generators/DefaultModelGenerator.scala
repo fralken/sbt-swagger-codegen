@@ -45,11 +45,13 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConverters {
 
         for {
           (name, model) <- models
-        } yield
-          SyntaxCode(name + ".scala",
+        } yield {
+          val className = name.capitalize
+          SyntaxCode(className + ".scala",
             pkg,
             imports,
-            List(generateStatement(name.capitalize, propertiesToParams(model.getProperties), Option(model.getDescription))))
+            List(generateStatement(className, propertiesToParams(model.getProperties), Option(model.getDescription))))
+        }
       case None => Iterable.empty
     }
   }

@@ -27,7 +27,6 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
   def generateImports(packageName: String): List[Import] = {
     List(
-      q"import ${getPackageTerm(packageName)}._",
       q"import ${getPackageTerm(packageName)}.json._",
       q"import play.api.libs.ws._",
       q"import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue",
@@ -38,7 +37,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
     )
   }
 
-  def generate(fileName: String, packageName: String): Iterable[SyntaxCode] = {
+  def generate(fileName: String, destPackage: String): Iterable[SyntaxCode] = {
     val swagger = new SwaggerParser().read(fileName)
 
     val basePath = Option(swagger.getBasePath).getOrElse("/")
@@ -93,7 +92,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
               }
            """)
 
-        Seq(SyntaxCode(clientName + ".scala", getPackageTerm(packageName), generateImports(packageName), tree))
+        Seq(SyntaxCode(clientName + ".scala", getPackageTerm(destPackage), generateImports(destPackage), tree))
       case None => Iterable.empty
     }
   }

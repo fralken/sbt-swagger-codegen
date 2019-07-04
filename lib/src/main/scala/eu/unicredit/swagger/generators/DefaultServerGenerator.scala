@@ -37,7 +37,6 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
   def generateControllerImports(packageName: String, codeProvidedPackage: String, serviceName: String): List[Import] = {
     List(
-      q"import ${getPackageTerm(packageName)}._",
       q"import ${getPackageTerm(packageName)}.json._",
       q"import play.api.mvc.Results._",
       q"import play.api.mvc._",
@@ -49,7 +48,6 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
   def generateRouterImports(packageName: String): List[Import] = {
     List(
-      q"import ${getPackageTerm(packageName)}._",
       q"import play.api.mvc._",
       q"import play.api.routing.Router.Routes",
       q"import play.api.routing.SimpleRouter",
@@ -58,7 +56,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     )
   }
 
-  def generateRouter(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxCode] = {
+  def generateRouter(fileName: String, destPackage: String): Iterable[SyntaxCode] = {
     val swagger = new SwaggerParser().read(fileName)
 
     val controllerName = controllerNameFromFileName(fileName)
@@ -153,7 +151,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     Option(swagger.getPaths) match {
       case Some(paths) =>
-        val imports = generateRouterImports(packageName)
+        val imports = generateRouterImports(destPackage)
 
         val tree = List(
           q"""class ${Type.Name(routerName)} @Inject()(controller: ${Type.Name(controllerName)}) extends SimpleRouter {
@@ -164,12 +162,12 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
            """
         )
 
-        Seq(SyntaxCode(routerName + ".scala", getPackageTerm(packageName), imports, tree))
+        Seq(SyntaxCode(routerName + ".scala", getPackageTerm(destPackage), imports, tree))
       case None => Iterable.empty
     }
   }
 
-  def generateController(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxCode] = {
+  def generateController(fileName: String, destPackage: String, codeProvidedPackage: String): Iterable[SyntaxCode] = {
     val swagger = new SwaggerParser().read(fileName)
 
     val controllerName = controllerNameFromFileName(fileName)
@@ -216,11 +214,11 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     Option(swagger.getPaths) match {
       case Some(paths) =>
-        val imports = generateControllerImports(packageName, codeProvidedPackage, serviceName)
+        val imports = generateControllerImports(destPackage, codeProvidedPackage, serviceName)
 
         val tree = List(generateControllerClass(Type.Name(controllerName), Type.Name(serviceName), paths.asScala.toList.flatMap(composeController)))
 
-        Seq(SyntaxCode(controllerName + ".scala", getPackageTerm(packageName), imports, tree))
+        Seq(SyntaxCode(controllerName + ".scala", getPackageTerm(destPackage), imports, tree))
       case None => Iterable.empty
     }
   }
@@ -273,8 +271,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       q"val ${Pat.Var(termName)} = request.headers.get($litName).get"
   }
 
-  override def generate(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxCode] = {
-      generateController(fileName, packageName, codeProvidedPackage) ++ generateRouter(fileName, packageName, codeProvidedPackage)
+  override def generate(fileName: String, destPackage: String, codeProvidedPackage: String): Iterable[SyntaxCode] = {
+      generateController(fileName, destPackage, codeProvidedPackage) ++ generateRouter(fileName, destPackage)
   }
 }
 

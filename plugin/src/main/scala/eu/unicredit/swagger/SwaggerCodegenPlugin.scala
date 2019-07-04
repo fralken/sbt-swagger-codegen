@@ -15,26 +15,25 @@
 package eu.unicredit.swagger
 
 import java.io.File
+import java.io.File.{separator, separatorChar}
+
 import sbt._
 import Keys._
-
 import eu.unicredit.swagger.generators._
 
 object SwaggerCodegenPlugin extends AutoPlugin {
 
   object FileSplittingModes {
-    case object SingleFile
     case object OneFilePerSource
     case object OneFilePerModel
 
     def apply(s: String) =
       s match {
-        case "singleFile" => SingleFile
         case "oneFilePerSource" => OneFilePerSource
         case "oneFilePerModel" => OneFilePerModel
         case any =>
           throw new Exception(
-            s"Unsupported swaggerModelFileSplitting option $any please choose one of (singleFile | oneFilePerSource | oneFilePerModel)")
+            s"Unsupported swaggerModelFileSplitting option $any please choose one of (oneFilePerSource | oneFilePerModel)")
       }
   }
 
@@ -126,7 +125,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       swaggerClientCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "client",
       swaggerCodeGenPackage := "swagger.codegen",
       swaggerCodeProvidedPackage := "com.yourcompany",
-      swaggerModelFilesSplitting := "singleFile",
+      swaggerModelFilesSplitting := "oneFilePerSource",
       swaggerGenerateModel := true,
       swaggerGenerateClient := false,
       swaggerGenerateServer := false,
@@ -206,7 +205,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         try {
-          fName -> modelGenerator.generate(fPath, codegenPackage)
+          nameFromFileName(fName) -> modelGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}")
         } catch {
           case e: Exception =>
             logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
@@ -218,22 +217,16 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
     import FileSplittingModes._
     FileSplittingModes(fileSplittingMode) match {
-      case SingleFile =>
-        val ss = SyntaxCode("Model.scala",
-          models.values.flatten.head.pkg,
-          models.values.flatten.flatMap(_.imports).toList,
-          models.values.flatten.flatMap(_.statements).toList)
-
-        IO write (destDir / ss.name, ss.code)
       case OneFilePerSource =>
-        models.foreach { case (fileName, model) =>
-          val name = fileName.split(".yaml$|.json$").head.capitalize
-          val ss = SyntaxCode(name + ".scala",
-            model.head.pkg,
-            model.flatMap(_.imports).toList,
-            model.flatMap(_.statements).toList)
+        models.foreach { case (name, model) =>
+          if (model.nonEmpty) {
+            val ss = SyntaxCode(name + "Models.scala",
+              model.head.pkg,
+              model.flatMap(_.imports).toList,
+              model.flatMap(_.statements).toList)
 
-          IO write (destDir / ss.name, ss.code)
+            IO write (destDir / ss.name, ss.code)
+          }
         }
       case OneFilePerModel =>
         models.values.flatten.foreach { ss =>
@@ -250,7 +243,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           if fName.endsWith(".json") || fName.endsWith(".yaml")
         } yield {
           try {
-            jsonGenerator.generate(fPath, codegenPackage).toList
+            val packageName = packageNameFromFileName(fName)
+            jsonGenerator.generate(fPath, s"$codegenPackage.$packageName").toList.map { j => (packageName, j)}
           } catch {
             case e: Exception =>
               logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
@@ -258,8 +252,8 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           }
         }).flatten
 
-      jsonFormats.foreach { ss =>
-        val jsonDir = packageDir(destDir, ss.name)
+      jsonFormats.foreach { case (packageName, ss) =>
+        val jsonDir = packageDir(destDir / packageName, ss.name)
         IO write (jsonDir / "package.scala", ss.code)
       }
     }
@@ -284,7 +278,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         try {
-          serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
+          serverGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}", codeProvidedPackage)
         } catch {
           case e: Exception =>
             logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
@@ -318,7 +312,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         try {
-          clientGenerator.generate(fPath, codegenPackage)
+          clientGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}")
         } catch {
           case e: Exception =>
             logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
@@ -344,4 +338,18 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   def packageDir(base: File, packageName: String): File =
     base / packageName.replace(".", File.separator)
+
+  def nameFromFileName(fn: String) = {
+    val sep = if (separatorChar == 92.toChar) "\\\\" else separator
+    fn.split(sep)
+      .toList
+      .last
+      .replace(".yaml", "")
+      .replace(".json", "")
+      .split("-")
+      .map(_.capitalize)
+      .mkString
+  }
+
+  def packageNameFromFileName(fn: String) = nameFromFileName(fn).toLowerCase
 }

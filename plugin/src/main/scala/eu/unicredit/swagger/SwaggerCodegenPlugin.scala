@@ -208,8 +208,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           nameFromFileName(fName) -> modelGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}")
         } catch {
           case e: Exception =>
-            logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            throw e
+            sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
         }
       }).toMap
 
@@ -247,8 +246,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
             jsonGenerator.generate(fPath, s"$codegenPackage.$packageName").toList.map { j => (packageName, j)}
           } catch {
             case e: Exception =>
-              logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-              throw e
+              sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
           }
         }).flatten
 
@@ -281,8 +279,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           serverGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}", codeProvidedPackage)
         } catch {
           case e: Exception =>
-            logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            throw e
+            sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
         }
 
       }).flatten
@@ -315,8 +312,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           clientGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}")
         } catch {
           case e: Exception =>
-            logger.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
-            throw e
+            sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
         }
       }).flatten
 

@@ -14,14 +14,13 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.SwaggerConverters
 import io.swagger.models.Swagger
 import io.swagger.parser.SwaggerParser
 
 import scala.meta._
 import scala.collection.JavaConverters._
 
-class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
+class DefaultJsonGenerator extends JsonGenerator with SharedServerClientCode {
 
   def generateImports(): List[Import] = {
     List(q"import play.api.libs.json._")
@@ -73,7 +72,10 @@ class DefaultJsonGenerator extends JsonGenerator with SwaggerConverters {
       case Some(_) =>
         val imports = generateImports()
         val pkgObj = q"package object json { ..${generateStatements(swagger)} }"
-        Seq(SyntaxCode("json", getPackageTerm(destPackage), imports, List(pkgObj)))
+
+        val packageName = nameFromFileName(fileName.toLowerCase)
+        val completePackage = Term.Select(getPackageTerm(destPackage), Term.Name(packageName))
+        Seq(SyntaxCode(packageName, "json", completePackage, imports, List(pkgObj)))
       case None => Iterable.empty
     }
   }

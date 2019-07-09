@@ -23,14 +23,17 @@ trait SharedServerClientCode extends SwaggerConverters {
   import java.io.File.separator
   import java.io.File.separatorChar
 
-  def objectNameFromFileName(fn: String, obj: String) = {
+  def nameFromFileName(fn: String) = {
     val sep = if (separatorChar == 92.toChar) "\\\\" else separator
     fn.split(sep)
       .toList
       .last
       .replace(".yaml", "")
       .replace(".json", "")
-      .capitalize + obj
+  }
+
+  def objectNameFromFileName(fn: String, obj: String) = {
+    nameFromFileName(fn).capitalize + obj
   }
 
   def getOperations(path: Path): List[(String, Operation)] = {

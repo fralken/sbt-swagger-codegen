@@ -14,13 +14,12 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.SwaggerConverters
 import io.swagger.parser.SwaggerParser
 
 import scala.collection.JavaConverters._
 import scala.meta._
 
-class DefaultModelGenerator extends ModelGenerator with SwaggerConverters {
+class DefaultModelGenerator extends ModelGenerator with SharedServerClientCode {
 
   def generateStatement(name: String, parameters: Option[List[Term.Param]], comments: Option[String]): Stat = {
     parameters match {
@@ -40,15 +39,19 @@ class DefaultModelGenerator extends ModelGenerator with SwaggerConverters {
       case Some(_) =>
         val models = swagger.getDefinitions.asScala
 
-        val pkg = getPackageTerm(destPackage)
         val imports = generateImports()
+
+        val packageName = nameFromFileName(fileName.toLowerCase)
+        val completePackage = Term.Select(getPackageTerm(destPackage), Term.Name(packageName))
 
         for {
           (name, model) <- models
         } yield {
           val className = name.capitalize
-          SyntaxCode(className + ".scala",
-            pkg,
+
+          SyntaxCode(packageName,
+            className + ".scala",
+            completePackage,
             imports,
             List(generateStatement(className, propertiesToParams(model.getProperties), Option(model.getDescription))))
         }

@@ -35,9 +35,9 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
   def fileNameWithoutPath(fn: String): String = new File(fn).getName
 
-  def generateControllerImports(packageName: String, codeProvidedPackage: String, serviceName: String): List[Import] = {
+  def generateControllerImports(destPackageName: Term.Ref, codeProvidedPackage: String, serviceName: String): List[Import] = {
     List(
-      q"import ${getPackageTerm(packageName)}.json._",
+      q"import $destPackageName.json._",
       q"import play.api.mvc.Results._",
       q"import play.api.mvc._",
       q"import play.api.libs.json._",
@@ -46,7 +46,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
     )
   }
 
-  def generateRouterImports(packageName: String): List[Import] = {
+  def generateRouterImports: List[Import] = {
     List(
       q"import play.api.mvc._",
       q"import play.api.routing.Router.Routes",
@@ -151,7 +151,10 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     Option(swagger.getPaths) match {
       case Some(paths) =>
-        val imports = generateRouterImports(destPackage)
+        val packageName = nameFromFileName(fileName.toLowerCase)
+        val completePackage = Term.Select(getPackageTerm(destPackage), Term.Name(packageName))
+
+        val imports = generateRouterImports
 
         val tree = List(
           q"""class ${Type.Name(routerName)} @Inject()(controller: ${Type.Name(controllerName)}) extends SimpleRouter {
@@ -162,7 +165,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
            """
         )
 
-        Seq(SyntaxCode(routerName + ".scala", getPackageTerm(destPackage), imports, tree))
+        Seq(SyntaxCode(packageName, routerName + ".scala", completePackage, imports, tree))
       case None => Iterable.empty
     }
   }
@@ -214,11 +217,14 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     Option(swagger.getPaths) match {
       case Some(paths) =>
-        val imports = generateControllerImports(destPackage, codeProvidedPackage, serviceName)
+        val packageName = nameFromFileName(fileName.toLowerCase)
+        val completePackage = Term.Select(getPackageTerm(destPackage), Term.Name(packageName))
+
+        val imports = generateControllerImports(completePackage, codeProvidedPackage, serviceName)
 
         val tree = List(generateControllerClass(Type.Name(controllerName), Type.Name(serviceName), paths.asScala.toList.flatMap(composeController)))
 
-        Seq(SyntaxCode(controllerName + ".scala", getPackageTerm(destPackage), imports, tree))
+        Seq(SyntaxCode(packageName, controllerName + ".scala", completePackage, imports, tree))
       case None => Iterable.empty
     }
   }
@@ -278,8 +284,8 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
 class DefaultAsyncServerGenerator extends DefaultServerGenerator {
 
-  override def generateControllerImports(packageName: String, codeProvidedPackage: String, serviceName: String): List[Import] =
-    super.generateControllerImports(packageName, codeProvidedPackage, serviceName) :+
+  override def generateControllerImports(destPackage: Term.Ref, codeProvidedPackage: String, serviceName: String): List[Import] =
+    super.generateControllerImports(destPackage, codeProvidedPackage, serviceName) :+
       q"import scala.concurrent.ExecutionContext"
 
   override def generateControllerMethod(methodName: String, methodParams: List[Term.Param], headerParams: List[Term.Param], bodyParams: List[Term.Param], resType: (Term, Option[Type])): Stat = {

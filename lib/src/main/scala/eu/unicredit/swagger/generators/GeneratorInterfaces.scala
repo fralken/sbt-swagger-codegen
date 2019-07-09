@@ -16,7 +16,7 @@ package eu.unicredit.swagger.generators
 
 import scala.meta._
 
-case class SyntaxCode(name: String, pkg: Term.Ref, imports: List[Import], statements: List[Stat]) {
+case class SyntaxCode(packageName: String, fileName: String, pkg: Term.Ref, imports: List[Import], statements: List[Stat]) {
   val code: String = q"package $pkg { ..${imports ++ statements} }".syntax
 }
 

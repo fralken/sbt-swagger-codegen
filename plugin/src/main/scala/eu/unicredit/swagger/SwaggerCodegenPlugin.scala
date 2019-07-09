@@ -197,39 +197,41 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     checkFileExistence(sourcesDir)
     IO delete targetDir
 
-    val models: Map[String, Iterable[SyntaxCode]] =
-      (for {
+    val models =
+      for {
         file <- sourcesDir.listFiles()
         fName = file.getName
         fPath = file.getAbsolutePath
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         try {
-          nameFromFileName(fName) -> modelGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}")
+          modelGenerator.generate(fPath, codegenPackage)
         } catch {
           case e: Exception =>
             sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
         }
-      }).toMap
+      }
 
     val destDir = packageDir(targetDir, codegenPackage)
 
     import FileSplittingModes._
     FileSplittingModes(fileSplittingMode) match {
       case OneFilePerSource =>
-        models.foreach { case (name, model) =>
+        models.foreach { model =>
           if (model.nonEmpty) {
-            val ss = SyntaxCode(name + "Models.scala",
+            val ss = SyntaxCode(
+              model.head.packageName,
+              "Models.scala",
               model.head.pkg,
               model.flatMap(_.imports).toList,
               model.flatMap(_.statements).toList)
 
-            IO write (destDir / ss.name, ss.code)
+            IO write (destDir / ss.packageName / ss.fileName, ss.code)
           }
         }
       case OneFilePerModel =>
-        models.values.flatten.foreach { ss =>
-          IO write (destDir / ss.name, ss.code)
+        models.flatten.foreach { ss =>
+          IO write (destDir / ss.packageName / ss.fileName, ss.code)
         }
     }
 
@@ -242,17 +244,15 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           if fName.endsWith(".json") || fName.endsWith(".yaml")
         } yield {
           try {
-            val packageName = packageNameFromFileName(fName)
-            jsonGenerator.generate(fPath, s"$codegenPackage.$packageName").toList.map { j => (packageName, j)}
+            jsonGenerator.generate(fPath, codegenPackage)
           } catch {
             case e: Exception =>
               sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
           }
         }).flatten
 
-      jsonFormats.foreach { case (packageName, ss) =>
-        val jsonDir = packageDir(destDir / packageName, ss.name)
-        IO write (jsonDir / "package.scala", ss.code)
+      jsonFormats.foreach { ss =>
+        IO write (destDir / ss.packageName / ss.fileName / "package.scala", ss.code)
       }
     }
 
@@ -276,7 +276,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         try {
-          serverGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}", codeProvidedPackage)
+          serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
         } catch {
           case e: Exception =>
             sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
@@ -287,7 +287,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val destDir = packageDir(targetDir, codegenPackage)
 
     servers.foreach { ss =>
-      IO write (destDir / ss.name, ss.code)
+      IO write (destDir / ss.packageName / ss.fileName, ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
@@ -309,7 +309,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
         if fName.endsWith(".json") || fName.endsWith(".yaml")
       } yield {
         try {
-          clientGenerator.generate(fPath, s"$codegenPackage.${packageNameFromFileName(fName)}")
+          clientGenerator.generate(fPath, codegenPackage)
         } catch {
           case e: Exception =>
             sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
@@ -319,7 +319,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val destDir = packageDir(targetDir, codegenPackage)
 
     clients.foreach { ss =>
-      IO write (destDir / ss.name, ss.code)
+      IO write (destDir / ss.packageName / ss.fileName, ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
@@ -334,18 +334,4 @@ object SwaggerCodegenPlugin extends AutoPlugin {
 
   def packageDir(base: File, packageName: String): File =
     base / packageName.replace(".", File.separator)
-
-  def nameFromFileName(fn: String) = {
-    val sep = if (separatorChar == 92.toChar) "\\\\" else separator
-    fn.split(sep)
-      .toList
-      .last
-      .replace(".yaml", "")
-      .replace(".json", "")
-      .split("-")
-      .map(_.capitalize)
-      .mkString
-  }
-
-  def packageNameFromFileName(fn: String) = nameFromFileName(fn).toLowerCase
 }

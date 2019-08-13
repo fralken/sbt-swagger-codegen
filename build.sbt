@@ -45,6 +45,7 @@ lazy val root = project
 
 lazy val sonatypePublish = sonatypeSettings ++ Seq(
     publishMavenStyle := true,
+    publishTo := Some(sonatypeDefaultResolver.value),
     pomIncludeRepository := { _ =>
     false
   },

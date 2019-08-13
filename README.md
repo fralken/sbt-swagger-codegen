@@ -15,7 +15,7 @@ First clone this project and `publishLocal` it.
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.12-SNAPSHOT")`
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.1.0-SNAPSHOT")`
 
 Enable it in your `build.sbt` like this:
 

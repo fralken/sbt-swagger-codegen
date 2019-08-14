@@ -11,7 +11,9 @@ This code generator is designed specifically for Swagger Spec Version 2.0. Moreo
 
 ## Install
 
-First clone this project and `publishLocal` it.
+Current release is [`0.0.12`](https://github.com/unicredit/sbt-swagger-codegen/tree/0.0.12)
+
+If you want to try the latest version on `master`, first clone this project and `publishLocal` it.
 
 Enable it inside your `project\plugins.sbt` like this:
 

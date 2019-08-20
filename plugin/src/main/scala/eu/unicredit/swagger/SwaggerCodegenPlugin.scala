@@ -15,26 +15,25 @@
 package eu.unicredit.swagger
 
 import java.io.File
+import java.io.File.{separator, separatorChar}
+
 import sbt._
 import Keys._
 import eu.unicredit.swagger.generators._
 
 object SwaggerCodegenPlugin extends AutoPlugin {
 
-  sealed trait FileSplittingMode
-  object FileSplittingMode {
-    case object SingleFile extends FileSplittingMode
-    case object OneFilePerSource extends FileSplittingMode
-    case object OneFilePerModel extends FileSplittingMode
+  object FileSplittingModes {
+    case object OneFilePerSource
+    case object OneFilePerModel
 
-    def apply(s: String): FileSplittingMode =
+    def apply(s: String) =
       s match {
-        case "singleFile" => SingleFile
         case "oneFilePerSource" => OneFilePerSource
         case "oneFilePerModel" => OneFilePerModel
         case any =>
           throw new Exception(
-            s"Unsupported swaggerModelFileSplitting option $any please choose one of (singleFile | oneFilePerSource | oneFilePerModel)")
+            s"Unsupported swaggerModelFileSplitting option $any please choose one of (oneFilePerSource | oneFilePerModel)")
       }
   }
 
@@ -66,8 +65,6 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val swaggerServerCodeTargetDir =
       settingKey[File]("swaggerServerCodeTargetDir")
 
-    val swaggerServerRoutesFile = settingKey[File]("swaggerServerRoutesFile")
-
     val swaggerCodeGenPackage = settingKey[String]("swaggerCodeGenPackage")
 
     val swaggerModelFilesSplitting =
@@ -87,13 +84,10 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val swaggerClean = taskKey[Unit]("Clean swagger generated packages")
 
     val swaggerModelCodeGen =
-      taskKey[Seq[File]]("Generate swagger models and json converters")
+      taskKey[Seq[File]]("Generate swagger models and JSON converters")
 
     val swaggerServerCodeGen =
       taskKey[Seq[File]]("Generate swagger server controllers boilerplate")
-
-    val swaggerRoutesCodeGen =
-      taskKey[Seq[File]]("Generate swagger server routes")
 
     val swaggerClientCodeGen = taskKey[Seq[File]]("Generate swagger client class with WS calls to specific routes")
 
@@ -125,16 +119,13 @@ object SwaggerCodegenPlugin extends AutoPlugin {
       sourceGenerators in Compile += Def.task {
         modelDyn.value ++ clientDyn.value ++ serverDyn.value
       }.taskValue,
-      // should generate SRID code in src_managed, see issue #31
-      //resourceGenerators in Compile += Def.task { swaggerRoutesCodeGen.value }.taskValue,
       swaggerSourcesDir := (sourceDirectory in Compile).value / "swagger",
       swaggerModelCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "model",
       swaggerServerCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "server",
       swaggerClientCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "client",
-      swaggerServerRoutesFile := (resourceDirectory in Compile).value / "routes",
       swaggerCodeGenPackage := "swagger.codegen",
       swaggerCodeProvidedPackage := "com.yourcompany",
-      swaggerModelFilesSplitting := "singleFile",
+      swaggerModelFilesSplitting := "oneFilePerSource",
       swaggerGenerateModel := true,
       swaggerGenerateClient := false,
       swaggerGenerateServer := false,
@@ -148,272 +139,198 @@ object SwaggerCodegenPlugin extends AutoPlugin {
           codegenPackage = swaggerCodeGenPackage.value,
           modelTargetDir = swaggerModelCodeTargetDir.value.getAbsoluteFile,
           serverTargetDir = swaggerServerCodeTargetDir.value.getAbsoluteFile,
-          routesFile = swaggerServerRoutesFile.value.getAbsoluteFile,
-          clientTargetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile,
-          deleteRoutes = swaggerGenerateServer.value
+          clientTargetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile
         )
       },
       swaggerModelCodeGen := {
-        Def.taskDyn {
-          swaggerModelCodeGenCachedImpl(
-            codegenPackage = swaggerCodeGenPackage.value,
-            sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
-            fileSplittingMode = swaggerModelFilesSplitting.value,
-            generateJson = swaggerGenerateJsonRW.value,
-            targetDir = swaggerModelCodeTargetDir.value.getAbsoluteFile,
-            modelGenerator = swaggerModelCodeGenClass.value,
-            jsonGenerator = swaggerJsonCodeGenClass.value,
-            key = swaggerModelCodeGen
-          )
-        }.value
+        swaggerModelCodeGenImpl(
+          codegenPackage = swaggerCodeGenPackage.value,
+          sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
+          fileSplittingMode = swaggerModelFilesSplitting.value,
+          generateJson = swaggerGenerateJsonRW.value,
+          targetDir = swaggerModelCodeTargetDir.value.getAbsoluteFile,
+          modelGenerator = swaggerModelCodeGenClass.value,
+          jsonGenerator = swaggerJsonCodeGenClass.value,
+          logger = sLog.value
+        )
       },
       swaggerServerCodeGen := {
-        Def.taskDyn {
-          swaggerServerCodeGenCachedImpl(
-            targetDir = swaggerServerCodeTargetDir.value.getAbsoluteFile,
-            codegenPackage = swaggerCodeGenPackage.value,
-            sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
-            codeProvidedPackage = swaggerCodeProvidedPackage.value,
-            serverGenerator = swaggerServerCodeGenClass.value,
-            key = swaggerServerCodeGen
-          )
-        }.value
-      },
-      swaggerRoutesCodeGen := {
-        Def.taskDyn {
-          swaggerRoutesCodeGenCachedImpl(
-            codegenPackage = swaggerCodeGenPackage.value,
-            sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
-            targetRoutesFile = swaggerServerRoutesFile.value.getAbsoluteFile,
-            serverGenerator = swaggerServerCodeGenClass.value,
-            key = swaggerRoutesCodeGen
-          )
-        }.value
+        swaggerServerCodeGenImpl(
+          targetDir = swaggerServerCodeTargetDir.value.getAbsoluteFile,
+          codegenPackage = swaggerCodeGenPackage.value,
+          sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
+          codeProvidedPackage = swaggerCodeProvidedPackage.value,
+          serverGenerator = swaggerServerCodeGenClass.value,
+          logger = sLog.value
+        )
       },
       swaggerClientCodeGen := {
-        Def.taskDyn {
-          swaggerClientCodeGenCachedImpl(
-            codegenPackage = swaggerCodeGenPackage.value,
-            sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
-            targetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile,
-            clientGenerator = swaggerClientCodeGenClass.value,
-            key = swaggerClientCodeGen
-          )
-        }.value
+        swaggerClientCodeGenImpl(
+          codegenPackage = swaggerCodeGenPackage.value,
+          sourcesDir = swaggerSourcesDir.value.getAbsoluteFile,
+          targetDir = swaggerClientCodeTargetDir.value.getAbsoluteFile,
+          clientGenerator = swaggerClientCodeGenClass.value,
+          logger = sLog.value
+        )
       }
     )
   }
 
   def swaggerCleanImpl(modelTargetDir: File,
                        serverTargetDir: File,
-                       routesFile: File,
                        clientTargetDir: File,
-                       codegenPackage: String,
-                       deleteRoutes: Boolean): Unit = {
-    if (deleteRoutes) routesFile.delete()
+                       codegenPackage: String): Unit = {
     IO delete packageDir(modelTargetDir, codegenPackage)
     IO delete packageDir(serverTargetDir, codegenPackage)
     IO delete packageDir(clientTargetDir, codegenPackage)
   }
 
-  def swaggerModelCodeGenCachedImpl(codegenPackage: String,
-                                    sourcesDir: File,
-                                    fileSplittingMode: String,
-                                    generateJson: Boolean,
-                                    targetDir: File,
-                                    modelGenerator: ModelGenerator,
-                                    jsonGenerator: JsonGenerator,
-                                    key: TaskKey[Seq[File]]): Def.Initialize[Task[Seq[File]]] =
-    cachedGenerate(
-      key = key,
-      taskName = "Models",
-      sourcesDir = sourcesDir,
-      targetDir = targetDir,
-      generate = swaggerFiles =>
-        swaggerModelCodeGenImpl(codegenPackage, swaggerFiles, fileSplittingMode, generateJson, targetDir, modelGenerator, jsonGenerator)
-    )
-
   def swaggerModelCodeGenImpl(codegenPackage: String,
-                              swaggerFiles: Set[File],
+                              sourcesDir: File,
                               fileSplittingMode: String,
                               generateJson: Boolean,
                               targetDir: File,
                               modelGenerator: ModelGenerator,
-                              jsonGenerator: JsonGenerator): Seq[File] = {
+                              jsonGenerator: JsonGenerator,
+                              logger: Logger): Seq[File] = {
 
-    val models: Map[String, Iterable[SyntaxString]] =
-      swaggerFiles.map(file => file.getName -> modelGenerator.generate(file.getAbsolutePath, codegenPackage)).toMap
+    checkFileExistence(sourcesDir)
+    IO delete targetDir
+
+    val models =
+      for {
+        file <- sourcesDir.listFiles()
+        fName = file.getName
+        fPath = file.getAbsolutePath
+        if fName.endsWith(".json") || fName.endsWith(".yaml")
+      } yield {
+        try {
+          modelGenerator.generate(fPath, codegenPackage)
+        } catch {
+          case e: Exception =>
+            sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
+        }
+      }
 
     val destDir = packageDir(targetDir, codegenPackage)
 
-    import FileSplittingMode._
-    FileSplittingMode(fileSplittingMode) match {
-      case SingleFile =>
-        val ss = SyntaxString("Model.scala",
-          models.values.flatten.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
-          models.values.flatten.map(_.impl).toList.distinct.mkString("\n"))
-
-        IO write (destDir / ss.name, ss.code)
+    import FileSplittingModes._
+    FileSplittingModes(fileSplittingMode) match {
       case OneFilePerSource =>
-        models.foreach { case (k, m) =>
-          val name = k.split(".yaml$|.json$").head.capitalize
-          val ss = SyntaxString(name + ".scala",
-            m.flatMap(_.pre.split("\n")).toList.distinct.mkString("\n"),
-            m.map(_.impl).toList.distinct.mkString("\n"))
+        models.foreach { model =>
+          if (model.nonEmpty) {
+            val ss = SyntaxCode(
+              model.head.packageName,
+              "Models.scala",
+              model.head.pkg,
+              model.flatMap(_.imports).toList,
+              model.flatMap(_.statements).toList)
 
-          IO write (destDir / ss.name, ss.code)
+            IO write (destDir / ss.packageName / ss.fileName, ss.code)
+          }
         }
       case OneFilePerModel =>
-        models.values.flatten.foreach { ss =>
-          IO write (destDir / ss.name, ss.code)
+        models.flatten.foreach { ss =>
+          IO write (destDir / ss.packageName / ss.fileName, ss.code)
         }
     }
 
     if (generateJson) {
       val jsonFormats =
-        swaggerFiles.flatMap(file => jsonGenerator.generate(file.getAbsolutePath, codegenPackage).toList)
+        (for {
+          file <- sourcesDir.listFiles()
+          fName = file.getName
+          fPath = file.getAbsolutePath
+          if fName.endsWith(".json") || fName.endsWith(".yaml")
+        } yield {
+          try {
+            jsonGenerator.generate(fPath, codegenPackage)
+          } catch {
+            case e: Exception =>
+              sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
+          }
+        }).flatten
 
       jsonFormats.foreach { ss =>
-        val jsonDir = packageDir(destDir, ss.name)
-        IO write (jsonDir / "package.scala", ss.code)
+        IO write (destDir / ss.packageName / ss.fileName / "package.scala", ss.code)
       }
     }
 
     (destDir ** -DirectoryFilter).get
   }
-
-  def swaggerServerCodeGenCachedImpl(targetDir: File,
-                                     codegenPackage: String,
-                                     sourcesDir: File,
-                                     codeProvidedPackage: String,
-                                     serverGenerator: ServerGenerator,
-                                     key: TaskKey[Seq[File]]): Def.Initialize[Task[Seq[File]]] =
-    cachedGenerate(
-      key = key,
-      taskName = "Server",
-      sourcesDir = sourcesDir,
-      targetDir = targetDir,
-      generate = swaggerFiles => swaggerServerCodeGenImpl(targetDir, codegenPackage, swaggerFiles, codeProvidedPackage, serverGenerator)
-    )
 
   def swaggerServerCodeGenImpl(targetDir: File,
                                codegenPackage: String,
-                               swaggerFiles: Set[File],
+                               sourcesDir: File,
                                codeProvidedPackage: String,
-                               serverGenerator: ServerGenerator): Seq[File] = {
+                               serverGenerator: ServerGenerator,
+                               logger: Logger): Seq[File] = {
+    checkFileExistence(sourcesDir)
+    IO delete targetDir
 
-    val controllers =
-      swaggerFiles.flatMap(f => serverGenerator.generate(f.getAbsolutePath, codegenPackage, codeProvidedPackage))
+    val servers =
+      (for {
+        file <- sourcesDir.listFiles()
+        fName = file.getName
+        fPath = file.getAbsolutePath
+        if fName.endsWith(".json") || fName.endsWith(".yaml")
+      } yield {
+        try {
+          serverGenerator.generate(fPath, codegenPackage, codeProvidedPackage)
+        } catch {
+          case e: Exception =>
+            sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
+        }
 
-    val destDir = packageDir(targetDir, codegenPackage + ".controller")
+      }).flatten
 
-    controllers.foreach { ss =>
-      IO write (destDir / ss.name, ss.code)
+    val destDir = packageDir(targetDir, codegenPackage)
+
+    servers.foreach { ss =>
+      IO write (destDir / ss.packageName / ss.fileName, ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
   }
-
-  def swaggerRoutesCodeGenCachedImpl(codegenPackage: String,
-                                     sourcesDir: File,
-                                     targetRoutesFile: File,
-                                     serverGenerator: ServerGenerator,
-                                     key: TaskKey[Seq[File]]): Def.Initialize[Task[Seq[File]]] =
-    cachedGenerate(
-      key = key,
-      taskName = "Routes",
-      sourcesDir = sourcesDir,
-      targetDir = targetRoutesFile,
-      generate = swaggerFiles => swaggerRoutesCodeGenImpl(codegenPackage, swaggerFiles, targetRoutesFile, serverGenerator)
-    )
-
-  def swaggerRoutesCodeGenImpl(codegenPackage: String,
-                               swaggerFiles: Set[File],
-                               targetRoutesFile: File,
-                               serverGenerator: ServerGenerator): Seq[File] = {
-
-    val routes =
-      swaggerFiles.flatMap(f => serverGenerator.generateRoutes(f.getAbsolutePath, codegenPackage))
-
-    val sr = routes.mkString("\n", "\n\n", "\n")
-
-    IO write (targetRoutesFile, sr)
-
-    Seq(targetRoutesFile)
-  }
-
-  def swaggerClientCodeGenCachedImpl(codegenPackage: String,
-                                     sourcesDir: File,
-                                     targetDir: File,
-                                     clientGenerator: ClientGenerator,
-                                     key: TaskKey[Seq[File]] ): Def.Initialize[Task[Seq[File]]] =
-    cachedGenerate(
-      key = key,
-      taskName = "Client",
-      sourcesDir = sourcesDir,
-      targetDir = targetDir,
-      generate = swaggerFiles => swaggerClientCodeGenImpl(codegenPackage, swaggerFiles, targetDir, clientGenerator)
-    )
 
   def swaggerClientCodeGenImpl(codegenPackage: String,
-                               swaggerFiles: Set[File],
+                               sourcesDir: File,
                                targetDir: File,
-                               clientGenerator: ClientGenerator): Seq[File] = {
+                               clientGenerator: ClientGenerator,
+                               logger: Logger): Seq[File] = {
+    checkFileExistence(sourcesDir)
+    IO delete targetDir
 
-    val clients = swaggerFiles.flatMap(f => clientGenerator.generate(f.getAbsolutePath, codegenPackage))
+    val clients =
+      (for {
+        file <- sourcesDir.listFiles()
+        fName = file.getName
+        fPath = file.getAbsolutePath
+        if fName.endsWith(".json") || fName.endsWith(".yaml")
+      } yield {
+        try {
+          clientGenerator.generate(fPath, codegenPackage)
+        } catch {
+          case e: Exception =>
+            sys.error(s"Invalid swagger format: ${e.getMessage} - ${file.getCanonicalPath}")
+        }
+      }).flatten
 
-    val destDir = packageDir(targetDir, codegenPackage + ".client")
+    val destDir = packageDir(targetDir, codegenPackage)
 
     clients.foreach { ss =>
-      IO write (destDir / ss.name, ss.code)
+      IO write (destDir / ss.packageName / ss.fileName, ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
   }
 
-  private def cachedGenerate(key: TaskKey[Seq[File]],
-                             taskName: String,
-                             sourcesDir: File,
-                             targetDir: File,
-                             generate: Set[File] => Seq[File]): Def.Initialize[Task[Seq[File]]] = {
-
-
-    Def.task {
-      val log = streams.value.log
-
-      checkFileExistence(sourcesDir)
-      val swaggerFiles = sourcesDir.listFiles().filter(isSwaggerFile).toSet
-
-      val cacheFile = (streams in key).value.cacheDirectory / s"swagger_${taskName.toLowerCase}_${scalaBinaryVersion.value}"
-      val cachedGenerate: Set[File] => Set[File] = FileFunction.cached(
-        cacheFile,
-        inStyle = FilesInfo.lastModified,
-        outStyle = FilesInfo.exists
-      ) { _ =>
-
-        logTask(log, swaggerFiles.size, targetDir, taskName)
-
-        IO delete targetDir
-        generate(swaggerFiles).toSet
-      }
-
-      cachedGenerate(swaggerFiles).toSeq
-    }
-
-  }
-
-  def checkFileExistence(sDir: File): Unit = {
+  def checkFileExistence(sDir: File) = {
     if (!sDir.exists() || !sDir.isDirectory)
       throw new Exception(s"Provided swagger source dir $sDir doesn't exists")
-    else if (sDir.listFiles().count(isSwaggerFile) < 1)
+    else if (sDir.listFiles().count(x => x.getName.endsWith(".json") || x.getName.endsWith(".yaml")) < 1)
       throw new Exception(s"There are no files in swagger directory $sDir")
   }
-
-  private def isSwaggerFile(f: File): Boolean =
-    f.getName.endsWith(".json") || f.getName.endsWith(".yaml")
-
-  private def logTask(log: Logger, nFiles: Int, targetDir: File, taskName: String): Unit =
-    log.info(s"Compiling $nFiles swagger files ($taskName) to ${targetDir.getAbsolutePath}")
 
   def packageDir(base: File, packageName: String): File =
     base / packageName.replace(".", File.separator)

@@ -7,13 +7,17 @@ Moreover, you can do it directly within an `sbt` project.
 
 ## Compatibility
 
-This code generator is designed specifically for Swagger Spec Version 2.0. Moreover, it relies on [Play! Framework](http://www.playframework.com/) 2.6 for Json marshalling/unmarshalling, server- and client-side code.
+This code generator is designed specifically for Swagger Spec Version 2.0. Moreover, it relies on [Play! Framework](http://www.playframework.com/) 2.7 for Json marshalling/unmarshalling, server- and client-side code.
 
 ## Install
 
+Current release is [`0.0.12`](https://github.com/unicredit/sbt-swagger-codegen/tree/0.0.12)
+
+If you want to try the latest version on `master`, first clone this project and `publishLocal` it.
+
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.0.12")`
+`addSbtPlugin("eu.unicredit" % "sbt-swagger-codegen" % "0.1.0-SNAPSHOT")`
 
 Enable it in your `build.sbt` like this:
 
@@ -36,14 +40,9 @@ All available tasks from the plugin
 - `swaggerModelCodeGen`  -> generated code for model classes
 - `swaggerServerCodeGen` -> generates Play Framework code
 - `swaggerClientCodeGen` -> generates client code using `play-ws`
-- `swaggerRoutesCodeGen` -> generates Play Framework routes
 - `swaggerClean` -> cleans up already generated code
 
 The `swaggerModelCodeGen`, `swaggerServerCodeGen` and `swaggerClientCodeGen` will run automatically when the swagger sources change.
-
-`swaggerRoutesCodeGen` will _not_ run automatically because it generates code inside the "src/main/resources" directory instead of in "target/scala-2.12/src_managed".
-
-Tasks can be chained with other tasks (ex: ```(compile in Compile) <<= (compile in Compile) dependsOn swaggerRoutesCodeGen```)
 
 ## Keys (and defaults)
 
@@ -51,7 +50,7 @@ These keys influence properties of the generated code itself:
 
 - `swaggerSourcesDir` -> "/src/main/swagger" (path where to search for swagger files)
 - `swaggerCodeGenPackage` -> "swagger.codegen" (package name of the generated sources)
-- `swaggerModelFileSplitting` -> "singleFile" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
+- `swaggerModelFileSplitting` -> "oneFilePerSource" (in model generation how to group classes in '.scala' files available options are "oneFilePerSource" "oneFilePerModel")
 - `swaggerCodeProvidedPackage` -> "com.yourcompany" (where you will provide business logic server method implementation)
 
 These keys determine where generated files will be put:
@@ -59,7 +58,6 @@ These keys determine where generated files will be put:
 - `swaggerModelCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/model" (path where to put generated model files)
 - `swaggerClientCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/client" (path where to put generated client code files)
 - `swaggerServerCodeTargetDir` -> "target/scala-2.1x/src_managed/src/main/swagger/server" (path where to put generated server code files)
-- `swaggerServerRoutesFile` -> "src/main/resources/routes" (routes file to be generated)
 
 These keys can be used to determine what kind of code should be generated:
 

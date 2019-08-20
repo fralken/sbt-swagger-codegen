@@ -14,65 +14,42 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.SwaggerConversion
-import eu.unicredit.swagger.StringUtils._
-
-import treehugger.forest._
-import treehuggerDSL._
-
+import eu.unicredit.swagger.SwaggerConverters
 import io.swagger.models._
-import io.swagger.models.parameters._
 
-trait SharedServerClientCode extends SwaggerConversion {
+import scala.meta._
+
+trait SharedServerClientCode extends SwaggerConverters {
   import java.io.File.separator
   import java.io.File.separatorChar
 
-  def objectNameFromFileName(fn: String, obj: String) = {
+  def nameFromFileName(fn: String) = {
     val sep = if (separatorChar == 92.toChar) "\\\\" else separator
     fn.split(sep)
       .toList
       .last
       .replace(".yaml", "")
       .replace(".json", "")
-      .capitalize + obj
   }
 
-  def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
-    val p = getMethodParams(params).map {
-      case (n, v) => s"$n: ${treeToString(v.tpt)}"
-    }
-    // since it is a route definition, this is not Scala code, so we generate it manually
-    s"$className.$methodName" + p.mkString("(", ", ", ")")
+  def objectNameFromFileName(fn: String, obj: String) = {
+    nameFromFileName(fn).capitalize + obj
   }
 
-  def getMethodParams(params: Seq[Parameter]): Map[String, ValDef] =
-    params
-      .filter {
-        case _: PathParameter => true
-        case _: QueryParameter => true
-        case _: HeaderParameter => true
-        case _: BodyParameter => false
-        case x =>
-          println(
-            s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD")
-          false
-      }
-      .sortBy { //the order must be verified...
-        case _: HeaderParameter => 1
-        case _: PathParameter => 2
-        case _: QueryParameter => 3
-        // other subtypes have been removed already
-      }
-      .map(p => {
-        (p.getName, PARAM(p.getName, paramType(p)): ValDef)
-      })
-      .toMap
+  def getOperations(path: Path): List[(String, Operation)] = {
+    List(
+      Option(path.getDelete) map ("DELETE" -> _),
+      Option(path.getGet) map ("GET" -> _),
+      Option(path.getPost) map ("POST" -> _),
+      Option(path.getPut) map ("PUT" -> _)
+    ).flatten
+  }
 
-  def getOkRespType(op: Operation): Option[(String, Option[Type])] =
+  def getResponseResultsAndTypes(op: Operation): Option[(Term, Option[Type])] =
     respTypeMap.flatMap {
       case (k, v) =>
         Option(op.getResponses get k) map { response =>
-          v -> Option(response.getSchema).map(noOptPropType)
+          Term.Name(v) -> getResponseType(response)
         }
     }.headOption
 

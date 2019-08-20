@@ -16,26 +16,13 @@ package eu.unicredit.swagger.dependencies
 
 import sbt._
 
-object PlayWsStandalone {
-  val version = "1.1.3"
-}
-
-object DefaultModelGenerator {
-  def dependencies: Seq[sbt.ModuleID] = Seq()
-}
-
-object DefaultJsonGenerator {
-  def dependencies: Seq[sbt.ModuleID] = Seq(
-    "com.typesafe.play" %% "play-ws-standalone-json" % PlayWsStandalone.version
-  )
-}
-
-object DefaultServerGenerator {
-  def dependencies: Seq[sbt.ModuleID] = Seq()
-}
-
-object DefaultClientGenerator {
-  def dependencies: Seq[sbt.ModuleID] = Seq(
-    "com.typesafe.play" %% "play-ahc-ws-standalone" % PlayWsStandalone.version
-  )
+object Dependencies {
+  def apply(dependencies: Seq[(Language.Value, String, String, String)]): Seq[sbt.ModuleID] = {
+    dependencies.map { case (lang, groupId, artifactId, version) =>
+      lang match {
+        case Language.Scala => groupId %% artifactId % version
+        case Language.Java => groupId % artifactId % version
+      }
+    }
+  }
 }

@@ -10,3 +10,6 @@ src/main/scala-2.10
 scalastyle-config.xml
 .ensime
 .ensime_cache
+.bloop/
+.metals/
+project/.bloop/

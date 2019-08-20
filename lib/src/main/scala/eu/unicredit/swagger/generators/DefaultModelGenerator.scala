@@ -14,53 +14,48 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.SwaggerConversion
-
-import treehugger.forest._
-import definitions._
-import treehuggerDSL._
-
 import io.swagger.parser.SwaggerParser
-import io.swagger.models.properties._
+
 import scala.collection.JavaConverters._
+import scala.meta._
 
-class DefaultModelGenerator extends ModelGenerator with SwaggerConversion {
+class DefaultModelGenerator extends ModelGenerator with SharedServerClientCode {
 
-  def generateClass(name: String, props: Iterable[(String, Property)], comments: Option[String]): String = {
-    val GenClass = RootClass.newClass(name)
-
-    val params: Iterable[ValDef] = for ((pname, prop) <- props)
-      yield PARAM(pname, propType(prop)): ValDef
-
-    val tree: Tree =
-      if (params.isEmpty)
-        OBJECTDEF(GenClass) withFlags Flags.CASE
-      else
-        CLASSDEF(GenClass) withFlags Flags.CASE withParams params
-
-    val resTree = comments.map(tree withComment _).getOrElse(tree)
-
-    treeToString(resTree)
+  def generateStatement(name: String, parameters: Option[List[Term.Param]], comments: Option[String]): Stat = {
+    parameters match {
+      case None => q"case object ${Term.Name(name)}"
+      case Some(params) => q"case class ${Type.Name(name)} (..$params)"
+    }
   }
 
-  def generateModelInit(packageName: String): String = {
-    //val initTree =
-    //PACKAGE(packageName)
-
-    //treeToString(initTree)
-    "package " + packageName
+  def generateImports(): List[Import] = {
+    List.empty
   }
 
-  def generate(fileName: String, destPackage: String): Iterable[SyntaxString] = {
+  def generate(fileName: String, destPackage: String): Iterable[SyntaxCode] = {
     val swagger = new SwaggerParser().read(fileName)
 
-    val models = swagger.getDefinitions.asScala
+    Option(swagger.getPaths) match {
+      case Some(_) =>
+        val models = swagger.getDefinitions.asScala
 
-    for {
-      (name, model) <- models
-    } yield
-      SyntaxString(name + ".scala",
-                   generateModelInit(destPackage),
-                   generateClass(name, getProperties(model), Option(model.getDescription)))
+        val imports = generateImports()
+
+        val packageName = nameFromFileName(fileName.toLowerCase)
+        val completePackage = Term.Select(getPackageTerm(destPackage), Term.Name(packageName))
+
+        for {
+          (name, model) <- models
+        } yield {
+          val className = name.capitalize
+
+          SyntaxCode(packageName,
+            className + ".scala",
+            completePackage,
+            imports,
+            List(generateStatement(className, propertiesToParams(model.getProperties), Option(model.getDescription))))
+        }
+      case None => Iterable.empty
+    }
   }
 }

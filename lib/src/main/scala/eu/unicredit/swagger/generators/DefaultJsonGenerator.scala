@@ -14,90 +14,69 @@
  */
 package eu.unicredit.swagger.generators
 
-import eu.unicredit.swagger.SwaggerConversion
-import treehugger.forest._
-import definitions._
+import io.swagger.models.Swagger
 import io.swagger.parser.SwaggerParser
-import treehuggerDSL._
 
+import scala.meta._
 import scala.collection.JavaConverters._
 
-class DefaultJsonGenerator extends JsonGenerator with SwaggerConversion {
+class DefaultJsonGenerator extends JsonGenerator with SharedServerClientCode {
 
-  def generateJsonInit(packageName: String): String = {
-    val initTree =
-      BLOCK {
-        Seq(IMPORT("play.api.libs.json", "_"))
-      } inPackage packageName
-
-    treeToString(initTree)
+  def generateImports(): List[Import] = {
+    List(q"import play.api.libs.json._")
   }
 
-  def generateJsonImplicits(vds: List[ValDef]): String = {
-    val tree = PACKAGEOBJECTDEF("json") := BLOCK(vds)
-
-    treeToString(tree)
-  }
-
-  def generateJsonRW(fileName: String): List[ValDef] = {
-    val swagger = new SwaggerParser().read(fileName)
-
+  def generateStatements(swagger: Swagger): List[Stat] = {
     val models = swagger.getDefinitions.asScala
 
-    (for {
-      (name, model) <- models
-      c <- Seq("Reads", "Writes")
-    } yield {
-      val properties = getProperties(model)
-      val caseObject = properties.isEmpty
-      val typeName = if (caseObject) s"$name.type" else name
-      VAL(s"$name$c", s"$c[$typeName]") withFlags (Flags.IMPLICIT, Flags.LAZY) := {
-        c match {
-          case "Reads" =>
-            ANONDEF(s"$c[$typeName]") :=
-              LAMBDA(PARAM("json")) ==>
-                REF("JsSuccess") APPLY {
-                if (caseObject) {
-                  REF(name)
-                } else {
-                  REF(name) APPLY {
-                    for ((pname, prop) <- properties) yield {
-                      val mtd = if (!prop.getRequired) "asOpt" else "as"
-                      PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd APPLYTYPE noOptPropType(prop)
-                    }
-                  }
+    models.flatMap { case (originalName, model) =>
+      propertiesToParams(model.getProperties) match {
+        case None => List.empty
+        case Some(params) =>
+          val name = originalName.capitalize
+          val typeName = Type.Name(if (params.isEmpty) s"$name.type" else name)
+
+          val readsName = Pat.Var(Term.Name(s"${name}Reads"))
+          val readsParams = params.map { param =>
+            val mtd = Term.Name(if (isOption(param.decltpe.get)) "validateOpt" else "validate")
+            enumerator"""${Pat.Var(Term.Name(param.name.value))} <- (json \ ${Lit.String(param.name.value)}).$mtd[${getTypeInOption(param.decltpe.get)}]"""
+          }
+
+          val readsStat =
+            q"""implicit lazy val $readsName: Reads[$typeName] = Reads[$typeName] {
+                  json => for {
+                     ..$readsParams
+                  } yield ${Term.Name(name)}(..${getParamsNames(params)})
                 }
-              }
-          case "Writes" =>
-            ANONDEF(s"$c[$typeName]") :=
-              LAMBDA(PARAM("o")) ==>
-                REF("JsObject") APPLY {
-                if (caseObject) {
-                  SeqClass APPLY Seq.empty
-                } else {
-                  SeqClass APPLY {
-                    for ((pname, prop) <- properties)
-                      yield {
-                        LIT(pname) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT pname))
-                      }
-                  } DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull")))
+             """
+
+          val writesName = Pat.Var(Term.Name(s"${name}Writes"))
+          val writeParams = params.map { param =>
+            q"""${Lit.String(param.name.value)} -> Json.toJson(o.${Term.Name(param.name.value)})"""
+          }
+
+          val writesStat =
+            q"""implicit lazy val $writesName: Writes[$typeName] = Writes[$typeName] {
+                  o => JsObject(Seq(..$writeParams).filter(_._2 != JsNull))
                 }
-              }
-        }
+             """
+
+          List(readsStat, writesStat)
       }
-    }).toList
+    }.toList
   }
 
-  def generateJson(destPackage: String, vds: List[ValDef]): Iterable[SyntaxString] = {
-    val pre = generateJsonInit(destPackage)
+  def generate(fileName: String, destPackage: String): Iterable[SyntaxCode] = {
+    val swagger = new SwaggerParser().read(fileName)
+    Option(swagger.getPaths) match {
+      case Some(_) =>
+        val imports = generateImports()
+        val pkgObj = q"package object json { ..${generateStatements(swagger)} }"
 
-    val tree = PACKAGEOBJECTDEF("json") := BLOCK(vds)
-
-    val code = treeToString(tree)
-    Seq(SyntaxString("json", pre, code))
-  }
-
-  def generate(fileName: String, destPackage: String): Iterable[SyntaxString] = {
-    generateJson(destPackage, generateJsonRW(fileName))
+        val packageName = nameFromFileName(fileName.toLowerCase)
+        val completePackage = Term.Select(getPackageTerm(destPackage), Term.Name(packageName))
+        Seq(SyntaxCode(packageName, "json", completePackage, imports, List(pkgObj)))
+      case None => Iterable.empty
+    }
   }
 }

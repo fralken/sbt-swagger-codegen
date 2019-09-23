@@ -137,17 +137,10 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
         val pathParams = castedPathParams(patternInterpolateUrl("p", basePath + p), parametersToPathParams(parameters))
 
-        val params = if (queryParams.isEmpty) {
-          pathParams
-        } else if (queryParams.tail.isEmpty) {
-          p"$pathParams ? ${queryParams.head}"
-        } else {
-          def extractInfixGen(basePat: Pat, params: List[Pat]): Pat = {
-            if(params.isEmpty) basePat
-            else extractInfixGen(Pat.ExtractInfix(basePat, Term.Name("&"), params.head :: Nil), params.tail)
+        val params = queryParams match {
+            case Nil => pathParams
+            case head :: tail => tail.foldLeft(p"$pathParams ? $head")((a, b) => p"$a & $b")
           }
-          extractInfixGen(p"$pathParams ? ${queryParams.head}", queryParams.tail)
-        }
 
         p"case ${Term.Name(verb)}($params) => controller.${Term.Name(methodName)}(..$paramNames)"
       }

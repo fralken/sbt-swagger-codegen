@@ -142,7 +142,11 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
         } else if (queryParams.tail.isEmpty) {
           p"$pathParams ? ${queryParams.head}"
         } else {
-          p"$pathParams ? ${queryParams.head} & (..${queryParams.tail})"
+          def extractInfixGen(basePat: Pat, params: List[Pat]): Pat = {
+            if(params.isEmpty) basePat
+            else extractInfixGen(Pat.ExtractInfix(basePat, Term.Name("&"), params.head :: Nil), params.tail)
+          }
+          extractInfixGen(p"$pathParams ? ${queryParams.head}", queryParams.tail)
         }
 
         p"case ${Term.Name(verb)}($params) => controller.${Term.Name(methodName)}(..$paramNames)"

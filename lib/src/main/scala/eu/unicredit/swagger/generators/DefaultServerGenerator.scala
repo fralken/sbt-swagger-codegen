@@ -85,7 +85,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
               case "Long" => p"long($patVar)"
               case "Float" => p"float($patVar)"
               case "Double" => p"double($patVar)"
-              case "Bool" => p"bool($patVar)"
+              case "Boolean" => p"bool($patVar)"
               case _ => patVar
             }
         }

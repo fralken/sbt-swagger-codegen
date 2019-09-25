@@ -242,9 +242,12 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
 
     val answer =
       resType._2.map { typ =>
-        q"${resType._1}(Json.toJson[$typ](service.$methodTerm(..$paramNames)))"
+        List(q"${resType._1}(Json.toJson[$typ](service.$methodTerm(..$paramNames)))")
       }.getOrElse (
-        q"service.$methodTerm(..$paramNames); ${resType._1}"
+        List(
+          q"service.$methodTerm(..$paramNames)",
+          q"${resType._1}"
+        )
       )
 
     q"""def $methodTerm(..$methodParams) = {
@@ -252,7 +255,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
             try {
               ..${headerParams.map(generateStatementFromHeaderParameter)}
               ..${bodyParams.map(generateStatementFromBodyParameter)}
-              $answer
+              ..$answer
             } catch {
               case err: Throwable => BadRequest(service.onError($methodLiteral, err))
             }
